@@ -1,0 +1,13 @@
+part_no,depot,qty_on_hand,reorder_level
+PN-ENG-F101,Depot North,0,2
+PN-ENG-F102,Depot South,7,2
+PN-HYD-GEN (Simulated),Depot North,2,2
+PN-GEN-GEN (Simulated),Depot Central,3,3
+PN-AVI-GEN (Simulated),Depot South,7,2
+PN-LGA-GEN (Simulated),Depot Central,7,5
+PN-ENG-T201,Depot Central,2,4
+PN-ENG-T202,Depot North,0,2
+PN-HYD-GEN (Simulated),Depot Central,2,4
+PN-GEN-GEN (Simulated),Depot South,6,2
+PN-AVI-GEN (Simulated),Depot South,7,3
+PN-LGA-GEN (Simulated),Depot Central,1,4
