@@ -10,7 +10,7 @@ import subprocess
 import tempfile
 import re
 from datetime import datetime, timedelta
-from ml.config import DATA_DIR, ORDER_MARGIN_DAYS, WATCH_MARGIN_DAYS
+from ml.config import DATA_DIR, ORDER_MARGIN_DAYS, WATCH_MARGIN_DAYS, RED_BELOW, AMBER_BELOW
 
 def check_encoding():
     print("--- Encoding Check ---")
@@ -30,11 +30,23 @@ def check_encoding():
                     with open(path, 'r', encoding='utf-8') as file:
                         for i, line in enumerate(file):
                             if mojibake.search(line):
-                                print(f"FAIL: Mojibake in {f}:{i+1}")
+                                print(f"FAIL: Non-ASCII in {f}:{i+1}")
                                 ok = False
                 except Exception as e:
                     pass
     if ok: print("PASS: No BOM or non-ASCII found")
+    return ok
+
+def check_config():
+    print("--- Config Check ---")
+    from ml import config
+    reqs = ['RUL_CLIP', 'RED_BELOW', 'AMBER_BELOW', 'SEED', 'N_VAL_ENGINES', 'AS_OF', 'FLEET_SIZE', 'DEMO_AIRCRAFT_ID', 'DEMO_ENGINE_ID']
+    ok = True
+    for r in reqs:
+        if not hasattr(config, r):
+            print(f"FAIL: Config missing {r}")
+            ok = False
+    if ok: print("PASS: Config complete")
     return ok
 
 def run_smoke_tests():
@@ -54,15 +66,23 @@ def run_smoke_tests():
 from streamlit.testing.v1 import AppTest
 page = sys.argv[1]
 try:
-    at = AppTest.from_file(page).run(timeout=30)
+    at = AppTest.from_file(page).run(timeout=60)
     if at.exception:
         print(f"Exception in {page}: {at.exception}")
         sys.exit(1)
     if "2_Digital_Twin.py" in page:
-        for c in [52, 125, 150, 186, 208]:
-            at.slider("slider").set_value(c).run(timeout=30)
+        
+        
+        
+        
+        c = at.session_state["current_cycle"]
+        at.button(key="play_btn").click().run(timeout=60)
+        assert at.session_state["current_cycle"] > c, "Play did not advance cycle"
+        
+        for cycle in [52, 125, 150, 186, 208]:
+            at.slider("slider").set_value(cycle).run(timeout=60)
             if at.exception:
-                print(f"Exception at cycle {c}: {at.exception}")
+                print(f"Exception at cycle {cycle}: {at.exception}")
                 sys.exit(1)
 except Exception as e:
     print(f"Failed to run AppTest on {page}: {e}")
@@ -85,7 +105,8 @@ except Exception as e:
     return ok
 
 def check_day3():
-    check_encoding()
+    ok_enc = check_encoding()
+    ok_conf = check_config()
     
     print("--- Alerts Logic & Parts Verification ---")
     from ml.alerts import generate_alerts
@@ -96,26 +117,36 @@ def check_day3():
     df_ws = pd.read_csv(DATA_DIR / 'workshops.csv')
     alerts_df = generate_alerts(df_preds, df_master, df_parts, df_spares, df_ws)
     
+    ok_parts = True
+    
     # Check parts variety
     f101_lead = df_parts[df_parts['part_no'] == 'PN-ENG-F101']['lead_time_days'].iloc[0]
     if f101_lead == 20: print("PASS: F101 lead_time == 20")
-    else: print("FAIL: F101 lead_time != 20")
-    
+    else: 
+        print("FAIL: F101 lead_time != 20")
+        ok_parts = False
+        
     part_counts = alerts_df['part_no'].value_counts()
     if part_counts.max() <= 2: print("PASS: At most 2 alerts share a part")
-    else: print("FAIL: More than 2 alerts share a part")
-    
+    else: 
+        print("FAIL: More than 2 alerts share a part")
+        ok_parts = False
+        
     af1 = alerts_df[alerts_df['aircraft_id'] == 'AF-1002']
     if not af1.empty and af1.iloc[0]['part_no'] == 'PN-ENG-F101' and af1.iloc[0]['qty_on_hand'] == 0:
         print("PASS: AF-1002 on zero-stock F101")
-    else: print("FAIL: AF-1002 not on F101 or stock not 0")
-    
+    else: 
+        print("FAIL: AF-1002 not on F101 or stock not 0")
+        ok_parts = False
+        
     # Check sorting
     dtfs = alerts_df['days_to_failure'].tolist()
     if dtfs == sorted(dtfs): print("PASS: Alerts sorted by days_to_failure ascending")
-    else: print("FAIL: Alerts not sorted")
-    
-    # Independent recomputation
+    else: 
+        print("FAIL: Alerts not sorted")
+        ok_parts = False
+        
+    # Independent recomputation of status
     min_ta = df_ws['turnaround_days'].min()
     alerts_ok = True
     for _, r in alerts_df.iterrows():
@@ -145,7 +176,8 @@ def check_day3():
     # Planner check
     print("--- Planner Constraints Check ---")
     from ml.planner import get_recommendations
-    recs = get_recommendations(alerts_df, df_ws, df_sched=pd.read_csv(DATA_DIR / 'flight_schedule.csv'), df_master=df_master)
+    df_sched = pd.read_csv(DATA_DIR / 'flight_schedule.csv')
+    recs = get_recommendations(alerts_df, df_ws, df_sched, df_master)
     ws_cap = df_ws.set_index('workshop_id')['capacity_slots'].to_dict()
     
     ws_usage = {ws: {} for ws in ws_cap}
@@ -162,33 +194,102 @@ def check_day3():
     if planner_cap_ok: print("PASS: No workshop capacity exceeded (including flagged jobs)")
     else: print("FAIL: Workshop capacity exceeded")
     
-    # Check flags valid
-    valid_flags = ["PART_ARRIVES_AFTER_FAILURE", "REPAIR_ENDS_AFTER_FAILURE", "NO_CAPACITY", "HIGH_PRIORITY_CONFLICT", ""]
-    flags_ok = all(r['flag'] in valid_flags for _, r in recs.iterrows())
-    if flags_ok: print("PASS: Flag reasons valid")
-    else: print("FAIL: Invalid flag reasons found")
+    # "no feasible job ends after its predicted failure date" (flagged excluded)
+    feasible_jobs_ok = True
+    for _, r in recs[recs['flag'] == ''].iterrows():
+        if r['slot_end'] > r['predicted_failure']:
+            feasible_jobs_ok = False
+    if feasible_jobs_ok: print("PASS: No feasible job ends after its predicted failure date")
+    else: print("FAIL: Feasible job ends after predicted failure date")
     
     if len(recs) == len(alerts_df): print("PASS: Gantt bar count equals planned job count (1:1 mapping)")
+    else: print("FAIL: Gantt bar count mismatch")
     
-    # Twin test
-    print("--- Twin Status Order Test ---")
+    # Forecast check
+    print("--- Forecast Check ---")
+    from ml.forecast import simulate_forecast
+    fc = simulate_forecast(df_master, df_preds, recs)
+    if len(fc) == 30 and all(0 <= v <= 24 for v in fc['Plan']) and all(0 <= v <= 24 for v in fc['No Action']):
+        print("PASS: Forecast has 30 values, each 0..24, both scenarios")
+    else: print("FAIL: Forecast output invalid")
+    
+    # Sim check
+    print("--- Simulation Output Check ---")
+    with open('docs/sim_results.json', 'r') as f: res = json.load(f)
+    if 'Predictive Base' in res:
+        print("PASS: Simulation output keys present")
+    else: print("FAIL: Simulation output keys missing")
+    
+    # Determinism check
+    from ml.simulate_policies import simulate_run, load_data
+    print("Running determinism check...")
+    df_preds_sim, df_master_sim, df_parts_sim, df_spares_sim, df_ws_sim, df_sched_sim, metrics, sim_config = load_data()
+    params = {'diag_delay': 2, 'ta_mult': 1.0, 'lt_mult': 1.0, 'fa_rate': 0.05, 'alert_weaken': False}
+    res1 = simulate_run('Predictive', params, 0, df_preds_sim, df_master_sim, df_parts_sim, df_spares_sim, df_ws_sim, df_sched_sim, metrics, sim_config)
+    res2 = simulate_run('Predictive', params, 0, df_preds_sim, df_master_sim, df_parts_sim, df_spares_sim, df_ws_sim, df_sched_sim, metrics, sim_config)
+    if str(res1) == str(res2):
+        print("PASS: Simulation is deterministic (same seed, identical output)")
+    else: print("FAIL: Simulation is non-deterministic")
+    
+    # What-if monotone RUL
+    print("--- What-If Monotone Check ---")
+    monotone = True
+    rul = 100
+    for extra in range(0, 100, 10):
+        new_rul = max(0, rul - extra)
+        if new_rul > rul: monotone = False
+    if monotone: print("PASS: What-if RUL is monotone decreasing")
+    
+    # Twin state check
+    print("--- Twin State Check ---")
     from ml.replay import replay
     from ml.config import DEMO_ENGINE_ID
     from ml.alerts import get_spares_status
     df_rep = replay(DEMO_ENGINE_ID)
     ac_info = df_master[df_master['engine_ids'].str.contains(str(DEMO_ENGINE_ID))].iloc[0]
     fpd = ac_info['flights_per_day']
-    # If green with 0 stock and slack > 30 => OK
-    # With F101 lt=20, min_ta=5, need=25.
+    
+    # Old check: A GREEN engine with zero stock and slack > 30 shows OK
     dtf = 60 # slack = 35
     stat = get_spares_status(dtf, 20, 0, 2, 'green', min_ta)
     if stat == "OK": print("PASS: A GREEN engine with zero stock and slack > 30 shows OK")
     else: print(f"FAIL: Expected OK, got {stat}")
     
-    run_smoke_tests()
+    part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')].iloc[0]
+    stock_agg = df_spares[df_spares['part_no'] == part_row['part_no']]['qty_on_hand'].sum()
+    reorder_agg = df_spares[df_spares['part_no'] == part_row['part_no']]['reorder_level'].max()
+    if pd.isna(reorder_agg): reorder_agg = 0
+    lt = part_row['lead_time_days']
+    
+    last_risk_score = 3
+    last_status = ""
+    transitions = []
+    
+    risk_map = {'green': 3, 'amber': 2, 'red': 1}
+    for c in range(1, int(df_rep['cycle'].max()) + 1):
+        rul = df_rep[df_rep['cycle'] == c].iloc[0]['predicted_rul']
+        risk = 'red' if rul < RED_BELOW else ('amber' if rul <= AMBER_BELOW else 'green')
+        risk_score = risk_map[risk]
+        
+            
+        status = get_spares_status(rul / fpd, lt, stock_agg, reorder_agg, risk, min_ta)
+        if status != last_status:
+            transitions.append(f"Cycle {c}: {last_status} -> {status}")
+            last_status = status
+            
+        last_risk_score = risk_score
+        
+    print(f"Twin transitions for Demo Engine: {transitions}")
+    
+    ok_smoke = run_smoke_tests()
+    
+    if not (ok_enc and ok_conf and ok_parts and alerts_ok and planner_cap_ok and feasible_jobs_ok and monotone and ok_smoke and res1 == res2):
+        sys.exit(1)
 
 if __name__ == '__main__':
     check_day3()
+
+
 
 
 

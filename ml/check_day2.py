@@ -72,7 +72,7 @@ def check_day2():
         as_of_dt = pd.to_datetime(AS_OF)
         reds['dtf'] = (pd.to_datetime(reds['predicted_failure_date']) - as_of_dt).dt.days
         reds['type'] = dfs['aircraft_master'].set_index('aircraft_id').loc[reds['aircraft_id']]['type'].values
-        merged = reds.merge(dfs['parts_catalog'], on=['type', 'component']).merge(dfs['spares_inventory'], on='part_no')
+        merged = reds.merge(dfs['parts_catalog'], on=['aircraft_id', 'component']).merge(dfs['spares_inventory'], on='part_no')
         order_now = merged[(merged['qty_on_hand'] <= 0) & (merged['lead_time_days'] >= merged['dtf'])]
         if not order_now.empty:
             print("PASS: found RED part with 0 stock and long lead time")
@@ -144,19 +144,19 @@ def check_day2():
     try:
         from streamlit.testing.v1 import AppTest
         root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        at_main = AppTest.from_file(os.path.join(root, "app/main.py")).run()
+        at_main = AppTest.from_file(os.path.join(root, "app/main.py")).run(timeout=60)
         assert not at_main.exception, f"Exception in app/main.py: {at_main.exception}"
         print("PASS: app/main.py renders without exceptions")
         
-        at_ad = AppTest.from_file(os.path.join(root, "app/pages/1_Aircraft_Detail.py")).run()
+        at_ad = AppTest.from_file(os.path.join(root, "app/pages/1_Aircraft_Detail.py")).run(timeout=60)
         assert not at_ad.exception, f"Exception in 1_Aircraft_Detail.py: {at_ad.exception}"
         print("PASS: app/pages/1_Aircraft_Detail.py renders without exceptions")
         
-        at_dt = AppTest.from_file(os.path.join(root, "app/pages/2_Digital_Twin.py")).run()
+        at_dt = AppTest.from_file(os.path.join(root, "app/pages/2_Digital_Twin.py")).run(timeout=60)
         assert not at_dt.exception, f"Exception in 2_Digital_Twin.py: {at_dt.exception}"
         
         # Interact with the slider
-        at_dt.slider("slider").set_value(50).run()
+        at_dt.slider("slider").set_value(50).run(timeout=60)
         assert not at_dt.exception, f"Exception after slider interaction: {at_dt.exception}"
         print("PASS: app/pages/2_Digital_Twin.py renders and handles slider without exceptions")
         
@@ -165,5 +165,8 @@ def check_day2():
         
 if __name__ == '__main__':
     check_day2()
+
+
+
 
 

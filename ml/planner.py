@@ -44,6 +44,22 @@ def get_recommendations(alerts_df, df_ws, df_sched, df_master):
         # Consider all workshops
         for _, ws in df_ws.iterrows():
             ws_id = ws['workshop_id']
+            ws_spec = ws['specialisation']
+            
+            # Check specialisation
+            is_valid_spec = False
+            if ws_spec == 'General':
+                is_valid_spec = True
+            elif ws_spec == 'Engines' and 'engine' in comp:
+                is_valid_spec = True
+            elif ws_spec == 'Avionics' and 'avionics' in comp:
+                is_valid_spec = True
+            elif ws_spec == 'Hydraulics' and ('hydraulic' in comp or 'actuator' in comp or 'landing' in comp):
+                is_valid_spec = True
+                
+            if not is_valid_spec:
+                continue
+                
             ta = ws['turnaround_days']
             cap = ws_cap[ws_id]
             
@@ -142,3 +158,4 @@ def get_recommendations(alerts_df, df_ws, df_sched, df_master):
         })
         
     return pd.DataFrame(recs)
+
