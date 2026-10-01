@@ -1,13 +1,51 @@
 type,component,part_no,lead_time_days
-Generic Fighter Trainer,engine_1,PN-ENG-F101,45
-Generic Fighter Trainer,engine_2,PN-ENG-F102,45
-Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),19
-Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),9
-Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),13
-Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),9
-Generic Transport Aircraft,engine_1,PN-ENG-T201,12
-Generic Transport Aircraft,engine_2,PN-ENG-T202,13
-Generic Transport Aircraft,hydraulic_pump,PN-HYD-GEN (Simulated),18
-Generic Transport Aircraft,generator,PN-GEN-GEN (Simulated),17
-Generic Transport Aircraft,avionics_unit,PN-AVI-GEN (Simulated),16
-Generic Transport Aircraft,landing_gear_actuator,PN-LGA-GEN (Simulated),12
+Generic Fighter Trainer - V1,engine_1,PN-ENG-F101,20
+Generic Fighter Trainer - V1,engine_2,PN-ENG-F102,26
+Generic Fighter Trainer - V1,hydraulic_pump,PN-HYD-GEN (Simulated),5
+Generic Fighter Trainer - V1,generator,PN-GEN-GEN (Simulated),7
+Generic Fighter Trainer - V1,avionics_unit,PN-AVI-GEN (Simulated),11
+Generic Fighter Trainer - V1,landing_gear_actuator,PN-LGA-GEN (Simulated),5
+Generic Fighter Trainer - V88,engine_1,PN-ENG-F101-V88,25
+Generic Fighter Trainer - V88,engine_2,PN-ENG-F102-V88,29
+Generic Transport Aircraft - V6,engine_1,PN-ENG-T201-V6,23
+Generic Transport Aircraft - V6,engine_2,PN-ENG-T202-V6,24
+Generic Fighter Trainer - V73,engine_1,PN-ENG-F101-V73,19
+Generic Fighter Trainer - V73,engine_2,PN-ENG-F102-V73,25
+Generic Transport Aircraft - V30,engine_1,PN-ENG-T201-V30,22
+Generic Transport Aircraft - V30,engine_2,PN-ENG-T202-V30,17
+Generic Fighter Trainer - V99,engine_1,PN-ENG-F101-V99,19
+Generic Fighter Trainer - V99,engine_2,PN-ENG-F102-V99,28
+Generic Transport Aircraft - V21,engine_1,PN-ENG-T201-V21,24
+Generic Transport Aircraft - V21,engine_2,PN-ENG-T202-V21,29
+Generic Fighter Trainer - V13,engine_1,PN-ENG-F101-V13,25
+Generic Fighter Trainer - V13,engine_2,PN-ENG-F102-V13,22
+Generic Transport Aircraft - V79,engine_1,PN-ENG-T201-V79,16
+Generic Transport Aircraft - V79,engine_2,PN-ENG-T202-V79,22
+Generic Transport Aircraft - V70,engine_1,PN-ENG-T201-V70,19
+Generic Transport Aircraft - V70,engine_2,PN-ENG-T202-V70,22
+Generic Fighter Trainer - V72,engine_1,PN-ENG-F101-V72,18
+Generic Fighter Trainer - V72,engine_2,PN-ENG-F102-V72,29
+Generic Transport Aircraft - V75,engine_1,PN-ENG-T201-V75,27
+Generic Transport Aircraft - V75,engine_2,PN-ENG-T202-V75,21
+Generic Fighter Trainer - V100,engine_1,PN-ENG-F101-V100,23
+Generic Fighter Trainer - V100,engine_2,PN-ENG-F102-V100,18
+Generic Fighter Trainer - V50,engine_1,PN-ENG-F101-V50,17
+Generic Fighter Trainer - V50,engine_2,PN-ENG-F102-V50,30
+Generic Transport Aircraft - V22,engine_1,PN-ENG-T201-V22,27
+Generic Transport Aircraft - V22,engine_2,PN-ENG-T202-V22,29
+Generic Transport Aircraft - V91,engine_1,PN-ENG-T201-V91,24
+Generic Transport Aircraft - V91,engine_2,PN-ENG-T202-V91,16
+Generic Fighter Trainer - V70,engine_1,PN-ENG-F101-V70,30
+Generic Fighter Trainer - V70,engine_2,PN-ENG-F102-V70,17
+Generic Transport Aircraft - V36,engine_1,PN-ENG-T201-V36,22
+Generic Transport Aircraft - V36,engine_2,PN-ENG-T202-V36,17
+Generic Transport Aircraft - V100,engine_1,PN-ENG-T201-V100,25
+Generic Transport Aircraft - V100,engine_2,PN-ENG-T202-V100,24
+Generic Transport Aircraft - V53,engine_1,PN-ENG-T201-V53,18
+Generic Transport Aircraft - V53,engine_2,PN-ENG-T202-V53,23
+Generic Transport Aircraft - V29,engine_1,PN-ENG-T201-V29,22
+Generic Transport Aircraft - V29,engine_2,PN-ENG-T202-V29,24
+Generic Transport Aircraft - V20,engine_1,PN-ENG-T201-V20,24
+Generic Transport Aircraft - V20,engine_2,PN-ENG-T202-V20,18
+Generic Transport Aircraft - V97,engine_1,PN-ENG-T201-V97,23
+Generic Transport Aircraft - V97,engine_2,PN-ENG-T202-V97,23

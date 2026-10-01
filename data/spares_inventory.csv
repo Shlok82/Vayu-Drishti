@@ -1,13 +1,51 @@
 part_no,depot,qty_on_hand,reorder_level
-PN-ENG-F101,Depot North,0,2
-PN-ENG-F102,Depot South,7,2
-PN-HYD-GEN (Simulated),Depot North,2,2
-PN-GEN-GEN (Simulated),Depot Central,3,3
-PN-AVI-GEN (Simulated),Depot South,7,2
-PN-LGA-GEN (Simulated),Depot Central,7,5
-PN-ENG-T201,Depot Central,2,4
-PN-ENG-T202,Depot North,0,2
-PN-HYD-GEN (Simulated),Depot Central,2,4
-PN-GEN-GEN (Simulated),Depot South,6,2
-PN-AVI-GEN (Simulated),Depot South,7,3
-PN-LGA-GEN (Simulated),Depot Central,1,4
+PN-ENG-F101,Depot South,0,2
+PN-ENG-F102,Depot North,3,3
+PN-HYD-GEN (Simulated),Depot Central,8,3
+PN-GEN-GEN (Simulated),Depot South,18,2
+PN-AVI-GEN (Simulated),Depot Central,19,4
+PN-LGA-GEN (Simulated),Depot Central,8,4
+PN-ENG-F101-V88,Depot North,0,2
+PN-ENG-F102-V88,Depot Central,0,3
+PN-ENG-T201-V6,Depot North,7,1
+PN-ENG-T202-V6,Depot North,9,3
+PN-ENG-F101-V73,Depot Central,0,3
+PN-ENG-F102-V73,Depot South,1,2
+PN-ENG-T201-V30,Depot North,0,3
+PN-ENG-T202-V30,Depot North,7,1
+PN-ENG-F101-V99,Depot South,6,3
+PN-ENG-F102-V99,Depot Central,6,3
+PN-ENG-T201-V21,Depot Central,3,4
+PN-ENG-T202-V21,Depot North,0,1
+PN-ENG-F101-V13,Depot North,0,3
+PN-ENG-F102-V13,Depot Central,0,3
+PN-ENG-T201-V79,Depot North,1,2
+PN-ENG-T202-V79,Depot Central,1,5
+PN-ENG-T201-V70,Depot South,9,3
+PN-ENG-T202-V70,Depot North,5,2
+PN-ENG-F101-V72,Depot South,7,2
+PN-ENG-F102-V72,Depot North,3,1
+PN-ENG-T201-V75,Depot North,4,1
+PN-ENG-T202-V75,Depot North,6,1
+PN-ENG-F101-V100,Depot Central,1,2
+PN-ENG-F102-V100,Depot North,0,3
+PN-ENG-F101-V50,Depot South,4,1
+PN-ENG-F102-V50,Depot North,0,5
+PN-ENG-T201-V22,Depot South,0,2
+PN-ENG-T202-V22,Depot North,1,5
+PN-ENG-T201-V91,Depot Central,2,2
+PN-ENG-T202-V91,Depot Central,3,1
+PN-ENG-F101-V70,Depot North,6,3
+PN-ENG-F102-V70,Depot North,7,1
+PN-ENG-T201-V36,Depot Central,0,3
+PN-ENG-T202-V36,Depot North,2,4
+PN-ENG-T201-V100,Depot Central,1,5
+PN-ENG-T202-V100,Depot South,0,2
+PN-ENG-T201-V53,Depot Central,0,1
+PN-ENG-T202-V53,Depot North,0,2
+PN-ENG-T201-V29,Depot Central,3,3
+PN-ENG-T202-V29,Depot North,9,3
+PN-ENG-T201-V20,Depot South,4,1
+PN-ENG-T202-V20,Depot North,9,3
+PN-ENG-T201-V97,Depot North,2,3
+PN-ENG-T202-V97,Depot North,4,2
