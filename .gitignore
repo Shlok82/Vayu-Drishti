@@ -1,0 +1,11 @@
+data/raw/
+*.zip
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+.streamlit/secrets.toml
+.ipynb_checkpoints/
+docs/*.pdf
+docs/readme.txt
