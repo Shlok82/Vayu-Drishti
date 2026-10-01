@@ -105,5 +105,65 @@ def main():
     st.dataframe(styled_preds, use_container_width=True, hide_index=True)
     st.caption("Predicted RUL is capped at 125 cycles; green values mean at least that many cycles remain. Failure date assumes flights per day from the aircraft record.")
 
+    st.write("---")
+    st.subheader("Fleet Spares Check")
+    
+    parts_path = os.path.join('data', 'parts_catalog.csv')
+    spares_path = os.path.join('data', 'spares_inventory.csv')
+    if os.path.exists(parts_path) and os.path.exists(spares_path):
+        df_parts = pd.read_csv(parts_path)
+        df_spares = pd.read_csv(spares_path)
+        
+        # Only amber/red components
+        trouble_comps = df_preds[df_preds['risk_level'].isin(['red', 'amber'])].copy()
+        
+        if not trouble_comps.empty:
+            # Need to get AS_OF from config, or we can just use the generated_at from preds
+            as_of_str = trouble_comps['generated_at'].iloc[0]
+            as_of_dt = pd.to_datetime(as_of_str)
+            trouble_comps['days_to_failure'] = (pd.to_datetime(trouble_comps['predicted_failure_date']) - as_of_dt).dt.days
+            
+            # Map components to parts catalog by component and type
+            trouble_comps = trouble_comps.merge(df_master[['aircraft_id', 'type']], on='aircraft_id', how='left')
+            merged = trouble_comps.merge(df_parts, on=['type', 'component'], how='left')
+            
+            # Aggregate spares by part_no to get total qty
+            total_stock = df_spares.groupby('part_no')['qty_on_hand'].sum().reset_index()
+            # Also get max reorder level for logic
+            max_reorder = df_spares.groupby('part_no')['reorder_level'].max().reset_index()
+            spares_agg = total_stock.merge(max_reorder, on='part_no')
+            
+            merged = merged.merge(spares_agg, on='part_no', how='left')
+            
+            # Status logic
+            statuses = []
+            for _, row in merged.iterrows():
+                dtf = row['days_to_failure']
+                lt = row['lead_time_days']
+                stock = row['qty_on_hand']
+                reorder = row['reorder_level']
+                
+                if stock <= 0 or (stock <= reorder and lt >= dtf):
+                    statuses.append("ORDER NOW")
+                elif stock > reorder:
+                    statuses.append("OK")
+                else:
+                    statuses.append("WATCH")
+            
+            merged['status'] = statuses
+            
+            # Sort by urgency
+            status_order = {'ORDER NOW': 0, 'WATCH': 1, 'OK': 2}
+            merged['_sort'] = merged['status'].map(status_order)
+            merged = merged.sort_values(['_sort', 'days_to_failure']).drop(columns=['_sort'])
+            
+            # Display text alerts for ORDER NOW
+            for _, row in merged[merged['status'] == 'ORDER NOW'].iterrows():
+                st.error(f"⚠️ **{row['aircraft_id']} ({row['component']})**: Part {row['part_no']} fails in {row['days_to_failure']} days, stock {row['qty_on_hand']}, lead time {row['lead_time_days']} days. **ORDER NOW**")
+            
+            st.dataframe(merged[['aircraft_id', 'component', 'part_no', 'days_to_failure', 'qty_on_hand', 'lead_time_days', 'status']], use_container_width=True, hide_index=True)
+        else:
+            st.success("No amber or red components require spares checking currently.")
+            
 if __name__ == '__main__':
     main()
