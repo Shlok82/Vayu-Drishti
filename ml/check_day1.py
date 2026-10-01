@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+_root = Path(__file__).resolve().parents[1]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 import os
 import json
 import pandas as pd
@@ -94,7 +99,7 @@ def check_day1():
     else: print(f"FAIL: predictions columns mismatch: {list(preds.columns)}")
     
     # 7. Check consistency and formulas
-    import config
+    from ml import config
     as_of = config.AS_OF
     if all(preds['generated_at'] == as_of): print("PASS: generated_at matches AS_OF")
     else: print("FAIL: generated_at mismatch")
@@ -147,3 +152,5 @@ def check_day1():
     
 if __name__ == '__main__':
     check_day1()
+
+

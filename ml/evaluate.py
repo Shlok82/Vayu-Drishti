@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+_root = Path(__file__).resolve().parents[1]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 import pandas as pd
 import numpy as np
 import joblib
@@ -5,7 +10,7 @@ import json
 import os
 import matplotlib.pyplot as plt
 import re
-from config import RED_BELOW, RUL_CLIP
+from ml.config import RED_BELOW, RUL_CLIP
 
 def main():
     print("Loading data and model...")
@@ -198,3 +203,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

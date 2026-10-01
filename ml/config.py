@@ -1,3 +1,14 @@
+import sys
+from pathlib import Path
+_root = Path(__file__).resolve().parents[1]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
+from pathlib import Path
+
+ROOT_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = ROOT_DIR / 'data'
+DOCS_DIR = ROOT_DIR / 'docs'
+
 RUL_CLIP = 125
 RED_BELOW = 30
 AMBER_BELOW = 80
@@ -12,4 +23,7 @@ COMPONENTS = ['engine_1', 'engine_2', 'hydraulic_pump', 'generator', 'avionics_u
 # Planner Config
 MISSION_PRIORITY_WEIGHTS = {'low': 1, 'medium': 2, 'high': 4}
 AVG_FLIGHT_HOURS_PER_CYCLE = 1.5
+WATCH_MARGIN_DAYS = 30
+ORDER_MARGIN_DAYS = 14
+
 

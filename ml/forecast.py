@@ -1,6 +1,11 @@
+import sys
+from pathlib import Path
+_root = Path(__file__).resolve().parents[1]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 import pandas as pd
 from datetime import datetime, timedelta
-import config
+from ml import config
 
 def simulate_forecast(df_master, df_preds, recs_df, days=30):
     as_of_dt = datetime.strptime(config.AS_OF, "%Y-%m-%d %H:%M").date()
@@ -104,3 +109,4 @@ def simulate_forecast(df_master, df_preds, recs_df, days=30):
         'No Action': no_action_ready,
         'Plan': planned_ready
     })
+

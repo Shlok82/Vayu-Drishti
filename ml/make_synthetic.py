@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+_root = Path(__file__).resolve().parents[1]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 import pandas as pd
 import numpy as np
 import joblib
@@ -5,16 +10,7 @@ import os
 import random
 from datetime import datetime, timedelta
 
-from config import SEED, FLEET_SIZE, RED_BELOW, AMBER_BELOW, AS_OF, COMPONENTS
-
-"""
-Assumptions for Synthetic Data Generation:
-- maintenance_logs: 6 to 18 months of history before AS_OF per aircraft. Downtime: scheduled (1-4 days), unscheduled (3-14 days).
-- parts_catalog: 6 components (2 engines, 4 generic). Lead time 5 to 45 days.
-- spares_inventory: 3 depots. Specifically designed so that a RED engine part has 0 stock and long lead time (to trigger ORDER NOW). AMBER parts are mostly in stock.
-- workshops: 4 workshops with varying capacity (2-5 slots) and turnaround (5-15 days).
-- flight_schedule: 60 days forward from AS_OF. Aircraft fly randomly (not every day).
-"""
+from ml.config import SEED, FLEET_SIZE, RED_BELOW, AMBER_BELOW, AS_OF, COMPONENTS
 
 def main():
     print("Loading model and metadata...")
@@ -62,16 +58,44 @@ def main():
     g3_sel = np.random.choice(list(set(green_engines) - set(g_sel) - set(g2_sel)), size=2, replace=False).tolist()
     red_engine_pairs = [(r_sel[i], g3_sel[i]) for i in range(2)]
     
-    all_pairs = green_engine_pairs + amber_engine_pairs + red_engine_pairs
-    np.random.shuffle(all_pairs)
+    # We want AF-1002 to be RED. AF-1001 to be GREEN (it holds demo engine 71 usually).
+    # Since all_pairs gets shuffled, let's rigidly define the fleet mix 16/6/2
+    # AF-1001 is green
+    # AF-1002 is red
+    
+    # Separate the lists
+    greens = green_engine_pairs
+    ambers = amber_engine_pairs
+    reds = red_engine_pairs
     
     aircraft_data = []
+    
     for i in range(FLEET_SIZE):
         ac_id = f"AF-{1001 + i}"
-        eng1, eng2 = all_pairs[i]
+        
+        # Enforce AF-1001 is Green, AF-1002 is Red
+        if ac_id == 'AF-1001':
+            eng1, eng2 = greens.pop(0)
+            ac_type_base = "Generic Fighter Trainer"
+            variant = "V1"
+        elif ac_id == 'AF-1002':
+            eng1, eng2 = reds.pop(0)
+            ac_type_base = "Generic Fighter Trainer"
+            variant = "V1"
+        else:
+            if reds: eng1, eng2 = reds.pop(0)
+            elif ambers: eng1, eng2 = ambers.pop(0)
+            else: eng1, eng2 = greens.pop(0)
+            
+            ac_type_base = random.choice(["Generic Fighter Trainer", "Generic Transport Aircraft"])
+            # Generate a unique variant so no more than 2 aircraft share it
+            variant = f"V{random.randint(2, 100)}"
+            
+        full_type = f"{ac_type_base} - {variant}"
+            
         aircraft_data.append({
             'aircraft_id': ac_id,
-            'type': random.choice(["Generic Fighter Trainer", "Generic Transport Aircraft"]),
+            'type': full_type,
             'base': random.choice(["Base Alpha", "Base Bravo", "Base Charlie"]),
             'flights_per_day': round(random.uniform(0.8, 2.0), 2),
             'total_flight_hours': random.randint(1500, 5000),
@@ -82,64 +106,77 @@ def main():
     os.makedirs('data', exist_ok=True)
     df_master.to_csv('data/aircraft_master.csv', index=False)
     
-    # 2. parts_catalog
+    # 2. parts_catalog & 3. spares_inventory
     parts = []
-    # Vary by type
-    types = ["Generic Fighter Trainer", "Generic Transport Aircraft"]
-    for ac_type in types:
-        if "Fighter" in ac_type:
+    spares = []
+    depots = ['Depot North', 'Depot South', 'Depot Central']
+    
+    # We collect all unique types
+    unique_types = df_master['type'].unique()
+    
+    for full_type in unique_types:
+        is_v1_fighter = (full_type == "Generic Fighter Trainer - V1")
+        ac_type_base = full_type.split(" - ")[0]
+        variant_suffix = full_type.split(" - ")[1]
+        
+        if is_v1_fighter:
             pn_e1 = 'PN-ENG-F101'
             pn_e2 = 'PN-ENG-F102'
         else:
-            pn_e1 = 'PN-ENG-T201'
-            pn_e2 = 'PN-ENG-T202'
-            
+            if "Fighter" in ac_type_base:
+                pn_e1 = f'PN-ENG-F101-{variant_suffix}'
+                pn_e2 = f'PN-ENG-F102-{variant_suffix}'
+            else:
+                pn_e1 = f'PN-ENG-T201-{variant_suffix}'
+                pn_e2 = f'PN-ENG-T202-{variant_suffix}'
+                
         part_numbers = {
             'engine_1': pn_e1,
             'engine_2': pn_e2,
-            'hydraulic_pump': f'PN-HYD-{ac_type[:3].upper()} (Simulated)',
-            'generator': f'PN-GEN-{ac_type[:3].upper()} (Simulated)',
-            'avionics_unit': f'PN-AVI-{ac_type[:3].upper()} (Simulated)',
-            'landing_gear_actuator': f'PN-LGA-{ac_type[:3].upper()} (Simulated)'
+            'hydraulic_pump': f'PN-HYD-{ac_type_base[:3].upper()} (Simulated)',
+            'generator': f'PN-GEN-{ac_type_base[:3].upper()} (Simulated)',
+            'avionics_unit': f'PN-AVI-{ac_type_base[:3].upper()} (Simulated)',
+            'landing_gear_actuator': f'PN-LGA-{ac_type_base[:3].upper()} (Simulated)'
         }
         
         for comp, pn in part_numbers.items():
-            if 'ENG-F1' in pn:
-                lead = 45 # Long lead time for Fighter engines
+            # Skip if we already added this part
+            if any(p['part_no'] == pn for p in parts):
+                continue
+                
+            # Lead time and stock logic
+            if pn == 'PN-ENG-F101':
+                # Demo-design choice: 20 days lets the twin pass through WATCH and ORDER NOW before red
+                lead = 20
+                stock = 0
+                reorder = 2
+            elif 'ENG' in pn:
+                lead = random.randint(15, 30)
+                # Mix of stock levels
+                scenario = random.random()
+                if scenario < 0.2: # 20% chance 0 stock
+                    stock = 0
+                    reorder = random.randint(1, 3)
+                elif scenario < 0.5: # 30% chance below/at reorder
+                    reorder = random.randint(2, 5)
+                    stock = random.randint(0, reorder)
+                else: # 50% chance healthy stock
+                    reorder = random.randint(1, 3)
+                    stock = reorder + random.randint(2, 6)
             else:
-                lead = random.randint(5, 20)
-            parts.append({'type': ac_type, 'component': comp, 'part_no': pn, 'lead_time_days': lead})
+                lead = random.randint(5, 15)
+                stock = random.randint(5, 20)
+                reorder = random.randint(2, 5)
+                
+            parts.append({'type': full_type, 'component': comp, 'part_no': pn, 'lead_time_days': lead})
+            spares.append({
+                'part_no': pn,
+                'depot': random.choice(depots),
+                'qty_on_hand': stock,
+                'reorder_level': reorder
+            })
             
     pd.DataFrame(parts).to_csv('data/parts_catalog.csv', index=False)
-    
-    # 3. spares_inventory
-    spares = []
-    depots = ['Depot North', 'Depot South', 'Depot Central']
-    for p in parts:
-        pn = p['part_no']
-        
-        if pn == 'PN-ENG-F101':
-            stock = 0
-            reorder = 2
-        elif pn == 'PN-ENG-F102':
-            stock = random.randint(3, 8)
-            reorder = 2
-        elif pn == 'PN-ENG-T201':
-            stock = random.randint(1, 3)
-            reorder = 4
-        elif pn == 'PN-ENG-T202':
-            stock = 0
-            reorder = 2
-        else:
-            stock = random.randint(1, 10)
-            reorder = random.randint(2, 5)
-            
-        spares.append({
-            'part_no': pn,
-            'depot': random.choice(depots),
-            'qty_on_hand': stock,
-            'reorder_level': reorder
-        })
     pd.DataFrame(spares).to_csv('data/spares_inventory.csv', index=False)
 
     as_of_dt = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M")
@@ -151,12 +188,12 @@ def main():
         ac_id = ac['aircraft_id']
         num_logs = random.randint(3, 10)
         for _ in range(num_logs):
-            days_ago = random.randint(1, 540) # up to 18 months
+            days_ago = random.randint(1, 540)
             log_date = as_of_dt - timedelta(days=days_ago)
             kind = random.choice(['scheduled', 'unscheduled'])
             downtime = random.randint(1, 4) if kind == 'scheduled' else random.randint(3, 14)
             action = random.choice(['Routine Inspection', 'Component Replacement', 'Calibration', 'Software Update'])
-            comp = random.choice(list(part_numbers.keys()))
+            comp = random.choice(COMPONENTS)
             logs.append({
                 'log_id': f"LOG-{log_id:04d}",
                 'aircraft_id': ac_id,
@@ -182,7 +219,6 @@ def main():
     schedule = []
     for day in range(60):
         sched_date = as_of_dt + timedelta(days=day)
-        # Choose a random subset of aircraft to fly today (e.g., 60% of fleet)
         flying_ac = random.sample(aircraft_data, int(FLEET_SIZE * 0.6))
         for ac in flying_ac:
             schedule.append({

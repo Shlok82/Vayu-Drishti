@@ -1,62 +1,99 @@
+import sys
+from pathlib import Path
+_root = Path(__file__).resolve().parents[1]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 import pandas as pd
-from config import AS_OF
+from datetime import datetime
+from ml.config import AS_OF, ORDER_MARGIN_DAYS, WATCH_MARGIN_DAYS
 
-def generate_alerts(df_preds, df_master, df_parts, df_spares):
-    # Only amber/red components
-    trouble_comps = df_preds[df_preds['risk_level'].isin(['red', 'amber'])].copy()
-    
-    if trouble_comps.empty:
+def get_spares_status(dtf, lt, stock, reorder, risk, min_turnaround):
+    if stock >= 1:
+        if risk == 'red':
+            return "SCHEDULE NOW (IN STOCK)"
+        if risk == 'amber' and stock <= reorder:
+            return "WATCH"
+        return "OK"
+    else:
+        need_days = lt + min_turnaround
+        slack = dtf - need_days
+        if slack < 0:
+            return "CANNOT ARRIVE IN TIME"
+        elif slack <= ORDER_MARGIN_DAYS:
+            return "ORDER NOW"
+        elif slack <= WATCH_MARGIN_DAYS or risk in ['amber', 'red']:
+            return "WATCH"
+        else:
+            return "OK"
+
+def generate_alerts(df_preds, df_master, df_parts, df_spares, df_ws=None):
+    urgency_df = df_preds[df_preds['risk_level'].isin(['red', 'amber'])].copy()
+    if urgency_df.empty:
         return pd.DataFrame()
         
-    as_of_str = trouble_comps['generated_at'].iloc[0]
-    as_of_dt = pd.to_datetime(as_of_str)
-    trouble_comps['days_to_failure'] = (pd.to_datetime(trouble_comps['predicted_failure_date']) - as_of_dt).dt.days
+    as_of_dt = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M")
     
-    # Map components to parts catalog by component and type
-    trouble_comps = trouble_comps.merge(df_master[['aircraft_id', 'type']], on='aircraft_id', how='left')
-    merged = trouble_comps.merge(df_parts, on=['type', 'component'], how='left')
+    urgency_df = urgency_df.merge(df_master[['aircraft_id', 'type', 'flights_per_day']], on='aircraft_id', how='left')
+    urgency_df['days_to_failure'] = urgency_df['predicted_rul_cycles'] / urgency_df['flights_per_day']
     
-    # Aggregate spares by part_no to get total qty
-    total_stock = df_spares.groupby('part_no')['qty_on_hand'].sum().reset_index()
-    max_reorder = df_spares.groupby('part_no')['reorder_level'].max().reset_index()
-    if not total_stock.empty:
-        spares_agg = total_stock.merge(max_reorder, on='part_no')
-        merged = merged.merge(spares_agg, on='part_no', how='left')
-    else:
-        merged['qty_on_hand'] = 0
-        merged['reorder_level'] = 0
+    # We need to map variants. The components in df_preds are just 'engine_1' etc.
+    # We must match by aircraft_id and component? But parts_catalog only has 'type'.
+    # Our synthetic data parts_catalog uses the 'type' string like 'Generic Fighter Trainer - V1'
+    urgency_df = urgency_df.merge(df_parts[['type', 'component', 'part_no', 'lead_time_days']], on=['type', 'component'], how='left')
     
-    # Status logic
-    statuses = []
-    messages = []
-    for _, row in merged.iterrows():
+    stock_agg = df_spares.groupby('part_no')['qty_on_hand'].sum().reset_index()
+    reorder_agg = df_spares.groupby('part_no')['reorder_level'].max().reset_index()
+    spares_info = stock_agg.merge(reorder_agg, on='part_no')
+    
+    urgency_df = urgency_df.merge(spares_info, on='part_no', how='left')
+    
+    min_turnaround = 5
+    if df_ws is not None and not df_ws.empty:
+        min_turnaround = df_ws['turnaround_days'].min()
+    
+    # Sort by days_to_failure ascending
+    urgency_df = urgency_df.sort_values('days_to_failure')
+    
+    alerts = []
+    for _, row in urgency_df.iterrows():
+        ac_id = row['aircraft_id']
+        comp = row['component']
         dtf = row['days_to_failure']
+        risk = row['risk_level']
+        part_no = row['part_no']
         lt = row['lead_time_days']
-        stock = row['qty_on_hand']
-        reorder = row['reorder_level']
+        stock = row.get('qty_on_hand', 0)
+        reorder = row.get('reorder_level', 0)
         
-        if stock <= 0 and lt > dtf:
-            status = "CANNOT ARRIVE IN TIME"
-            msg = f"Part {row['part_no']} fails in {dtf} days, stock {stock}, lead time {lt} days: cannot arrive in time!"
-        elif stock <= 0 or (stock <= reorder and lt >= dtf):
-            status = "ORDER NOW"
-            msg = f"Part {row['part_no']} fails in {dtf} days, stock {stock}, lead time {lt} days: order now."
-        elif stock > reorder:
-            status = "OK"
-            msg = f"Part {row['part_no']} fails in {dtf} days, stock {stock}: OK."
+        status = get_spares_status(dtf, lt, stock, reorder, risk, min_turnaround)
+        
+        reorder_text = ", below reorder level, reorder" if stock <= reorder and stock >= 1 else ""
+        
+        if status == "SCHEDULE NOW (IN STOCK)":
+            action_text = "schedule now" + reorder_text
+        elif status == "ORDER NOW":
+            action_text = "order now"
+        elif status == "CANNOT ARRIVE IN TIME":
+            action_text = "cannot arrive in time"
+        elif status == "WATCH":
+            action_text = "watch" + reorder_text
         else:
-            status = "WATCH"
-            msg = f"Part {row['part_no']} fails in {dtf} days, stock {stock}: watch."
-            
-        statuses.append(status)
-        messages.append(msg)
+            action_text = "ok" + reorder_text
+
+        msg = f"Part {part_no} fails in {int(dtf)} days, stock {int(stock)}, lead time {int(lt)} days, repair {int(min_turnaround)} days: {action_text}."
         
-    merged['status'] = statuses
-    merged['alert_message'] = messages
-    
-    # Sort by urgency
-    status_order = {'CANNOT ARRIVE IN TIME': 0, 'ORDER NOW': 1, 'WATCH': 2, 'OK': 3}
-    merged['_sort'] = merged['status'].map(status_order)
-    merged = merged.sort_values(['_sort', 'days_to_failure']).drop(columns=['_sort'])
-    
-    return merged[['aircraft_id', 'component', 'days_to_failure', 'part_no', 'qty_on_hand', 'lead_time_days', 'status', 'alert_message', 'risk_level']]
+        alerts.append({
+            'aircraft_id': ac_id,
+            'component': comp,
+            'days_to_failure': dtf,
+            'part_no': part_no,
+            'qty_on_hand': stock,
+            'reorder_level': reorder,
+            'lead_time_days': lt,
+            'risk_level': risk,
+            'status': status,
+            'alert_message': msg,
+            'min_turnaround': min_turnaround
+        })
+        
+    return pd.DataFrame(alerts)

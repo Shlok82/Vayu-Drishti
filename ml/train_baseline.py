@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+_root = Path(__file__).resolve().parents[1]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 import pandas as pd
 import numpy as np
 from xgboost import XGBRegressor
@@ -8,7 +13,7 @@ import json
 import os
 import sys
 
-from config import RUL_CLIP, SEED, N_VAL_ENGINES
+from ml.config import RUL_CLIP, SEED, N_VAL_ENGINES
 
 # Column names based on CMAPSS documentation
 columns = ['engine', 'cycle', 'set1', 'set2', 'set3'] + [f's{i}' for i in range(1, 22)]
@@ -116,3 +121,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

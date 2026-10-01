@@ -1,8 +1,13 @@
+import sys
+from pathlib import Path
+_root = Path(__file__).resolve().parents[1]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 import pandas as pd
 import joblib
 import numpy as np
 
-from ml.config import RED_BELOW, AMBER_BELOW, RUL_CLIP
+from ml.config import RED_BELOW, AMBER_BELOW, RUL_CLIP, DATA_DIR
 
 _MODEL = None
 _METADATA = None
@@ -11,13 +16,13 @@ _DATA = None
 def load_resources():
     global _MODEL, _METADATA, _DATA
     if _MODEL is None:
-        data = joblib.load('ml/model.joblib')
+        data = joblib.load(str(Path(__file__).resolve().parents[1] / 'ml' / 'model.joblib'))
         _MODEL = data['model']
         _METADATA = data['metadata']
         
         # Load train (which contains heldout engines)
         # Load heldout engines from demo
-        _DATA = pd.read_csv('data/demo/heldout_engines.csv')
+        _DATA = pd.read_csv(DATA_DIR / 'demo/heldout_engines.csv')
 
 def replay(engine_id, source="heldout"):
     load_resources()
@@ -66,3 +71,8 @@ def replay(engine_id, source="heldout"):
 if __name__ == "__main__":
     df = replay(71)
     print(df.tail())
+
+
+
+
+
