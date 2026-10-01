@@ -144,16 +144,16 @@ Risk thresholds: red below 30 cycles, amber 30 to 80, green above 80.
 
 ### Day 3: Saturday 3 Oct: planner, forecast, proof, demo story
 
-- [ ] Availability forecast logic (aircraft ready over the next 30 days given predicted failures, workshop turnaround and spares lead time). Define "ready" = not in a workshop and no red-risk component.
-- [ ] **Reactive vs predictive simulation:** run about 200 Monte Carlo runs over 90 days. Reactive = fix after failure (diagnosis delay plus part lead time if out of stock plus repair). Predictive = planned slot, part ordered ahead. Keep all downtime parameters in one config file and report a sensitivity range.
-- [ ] Should-have: what-if function (predicted RUL after +50 flight hours, converted to cycles)
-- [ ] Write the methodology section (public NASA data plus synthetic logs, honest limits)
-- [ ] Maintenance recommender: rank jobs by risk, suggest slot and workshop, **avoid assigned missions in `flight_schedule` where possible** and show "missions affected"
-- [ ] Spares-aware alerts ("part fails in 12 days, stock is zero, lead time 20 days, order now")
-- [ ] Availability forecast chart ("next 30 days: 18 of 24 ready")
-- [ ] **Digital twin panel** on the detail page: live health state, sensor replay, predicted failure date updating as the stream advances
-- [ ] "Play simulation" button wired to the replay function
-- [ ] Results panel: reactive vs predictive readiness chart
+- [x] Availability forecast logic (aircraft ready over the next 30 days given predicted failures, workshop turnaround and spares lead time). Define "ready" = not in a workshop and no red-risk component.
+- [x] **Reactive vs predictive simulation:** run about 200 Monte Carlo runs over 90 days. Reactive = fix after failure (diagnosis delay plus part lead time if out of stock plus repair). Predictive = planned slot, part ordered ahead. Keep all downtime parameters in one config file and report a sensitivity range.
+- [x] Should-have: what-if function (predicted RUL after +50 flight hours, converted to cycles)
+- [x] Write the methodology section (public NASA data plus synthetic logs, honest limits)
+- [x] Maintenance recommender: rank jobs by risk, suggest slot and workshop, **avoid assigned missions in `flight_schedule` where possible** and show "missions affected"
+- [x] Spares-aware alerts ("part fails in 12 days, stock is zero, lead time 20 days, order now")
+- [x] Availability forecast chart ("next 30 days: 18 of 24 ready")
+- [x] **Digital twin panel** on the detail page: live health state, sensor replay, predicted failure date updating as the stream advances
+- [x] "Play simulation" button wired to the replay function
+- [x] Results panel: reactive vs predictive readiness chart
 - [ ] **First deploy to Streamlit Community Cloud** (pinned `requirements.txt`, relative paths, small files only)
 
 **End of day checkpoint (most important):** full demo story runs end to end once, locally and on the deployed link, with no crashes.
