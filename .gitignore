@@ -9,3 +9,4 @@ __pycache__/
 .ipynb_checkpoints/
 docs/*.pdf
 docs/readme.txt
+data/raw_off/
