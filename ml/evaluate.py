@@ -133,6 +133,30 @@ def main():
         'early_alerts': early_alerts
     })
     
+    # Calculate empirical residuals binned by predicted RUL
+    # We bin predicted RUL into: 0-30, 30-80, >80
+    residuals = {'0-30': [], '30-80': [], '>80': []}
+    for p, t in zip(all_pred, all_true):
+        res = t - p
+        if p <= 30:
+            residuals['0-30'].append(res)
+        elif p <= 80:
+            residuals['30-80'].append(res)
+        else:
+            residuals['>80'].append(res)
+            
+    # Sample 100 residuals per bin for simulation to avoid huge JSON
+    np.random.seed(42)
+    binned_res = {}
+    for k, v in residuals.items():
+        if len(v) > 100:
+            binned_res[k] = list(np.random.choice(v, size=100, replace=False))
+        else:
+            binned_res[k] = list(v)
+            
+    metrics['residuals_binned'] = binned_res
+
+    
     # Save metrics
     with open('docs/metrics.json', 'w') as f:
         json.dump(metrics, f, indent=4)

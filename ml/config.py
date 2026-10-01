@@ -9,3 +9,7 @@ DEMO_ENGINE_ID = 71
 DEMO_AIRCRAFT_ID = 'AF-1001'
 COMPONENTS = ['engine_1', 'engine_2', 'hydraulic_pump', 'generator', 'avionics_unit', 'landing_gear_actuator']
 
+# Planner Config
+MISSION_PRIORITY_WEIGHTS = {'low': 1, 'medium': 2, 'high': 4}
+AVG_FLIGHT_HOURS_PER_CYCLE = 1.5
+
