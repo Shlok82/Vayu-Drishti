@@ -134,6 +134,42 @@ def main():
             st.success("No amber or red components to check.")
             
     st.write("---")
+    with st.expander("What-If Analysis (Extra Flight Hours)"):
+        from ml.config import AVG_FLIGHT_HOURS_PER_CYCLE, AMBER_BELOW, RED_BELOW
+        extra_hours = st.number_input("Add flight hours", value=50)
+        extra_cycles = int(extra_hours / AVG_FLIGHT_HOURS_PER_CYCLE)
+        
+        st.write(f"**Adding +{extra_hours} hours (+{extra_cycles} cycles)** (Linear approximation)")
+        
+        what_if_data = []
+        for _, row in ac_preds.iterrows():
+            new_rul = max(0.0, row['predicted_rul_cycles'] - extra_cycles)
+            if new_rul < RED_BELOW: new_risk = 'red'
+            elif new_rul <= AMBER_BELOW: new_risk = 'amber'
+            else: new_risk = 'green'
+            
+            crosses = "Yes" if new_risk != row['risk_level'] else "No"
+            
+            fail_dt = pd.to_datetime(row['predicted_failure_date'])
+            # The absolute failure date moves closer if we fly these hours NOW rather than over the schedule
+            # Wait, the prompt says "new failure date".
+            # If we just fly 50 hours instantly, we consumed those cycles instantly.
+            # So the failure date is now: AS_OF + new_rul / fpd
+            # Or we can just subtract the days we consumed: extra_cycles / fpd
+            new_fail_dt = fail_dt - pd.Timedelta(days=extra_cycles / ac_info['flights_per_day'])
+            
+            what_if_data.append({
+                'Component': row['Component Label'],
+                'Orig RUL': row['predicted_rul_cycles'],
+                'New RUL': new_rul,
+                'Orig Risk': row['risk_level'],
+                'New Risk': new_risk,
+                'Crosses Threshold?': crosses,
+                'New Failure Date': new_fail_dt.strftime("%Y-%m-%d")
+            })
+        st.dataframe(pd.DataFrame(what_if_data), use_container_width=True, hide_index=True)
+            
+    st.write("---")
     st.subheader("Maintenance History")
     if 'maint' in data:
         ac_maint = data['maint'][data['maint']['aircraft_id'] == selected_ac].sort_values('date', ascending=False)
