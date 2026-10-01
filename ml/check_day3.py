@@ -14,7 +14,7 @@ from ml.config import DATA_DIR, ORDER_MARGIN_DAYS, WATCH_MARGIN_DAYS
 
 def check_encoding():
     print("--- Encoding Check ---")
-    mojibake = re.compile('[\u00e2\u00f0\u00c3\u00c2\u00ef\u00b8\ufffd]')
+    mojibake = re.compile(r'[^\x00-\x7F]')
     ok = True
     for root_dir in ['ml', 'app', 'docs']:
         for dirpath, _, filenames in os.walk(os.path.join(_root, root_dir)):
@@ -34,7 +34,7 @@ def check_encoding():
                                 ok = False
                 except Exception as e:
                     pass
-    if ok: print("PASS: No BOM or Mojibake found")
+    if ok: print("PASS: No BOM or non-ASCII found")
     return ok
 
 def run_smoke_tests():
@@ -54,13 +54,13 @@ def run_smoke_tests():
 from streamlit.testing.v1 import AppTest
 page = sys.argv[1]
 try:
-    at = AppTest.from_file(page).run()
+    at = AppTest.from_file(page).run(timeout=30)
     if at.exception:
         print(f"Exception in {page}: {at.exception}")
         sys.exit(1)
     if "2_Digital_Twin.py" in page:
         for c in [52, 125, 150, 186, 208]:
-            at.slider("slider").set_value(c).run()
+            at.slider("slider").set_value(c).run(timeout=30)
             if at.exception:
                 print(f"Exception at cycle {c}: {at.exception}")
                 sys.exit(1)
@@ -189,3 +189,6 @@ def check_day3():
 
 if __name__ == '__main__':
     check_day3()
+
+
+

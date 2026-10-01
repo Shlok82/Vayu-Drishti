@@ -78,7 +78,7 @@ def main():
     
     st.subheader(f"Fleet Status: {ready_count} of {total_aircraft} ready")
     st.caption("Ready = no red-risk component. Risk thresholds: red < 30 cycles, amber 30 to 80, green > 80.")
-    st.write(f"**GREEN {green_count} Green** | **ÅÅ  {amber_count} Amber** | **RED {red_count} Red**")
+    st.write(f"**GREEN {green_count} Green** | **AMBER {amber_count} Amber** | **RED {red_count} Red**")
     
     ac_cards_info.sort(key=lambda x: (x['sort_key'], x['rul']))
     
@@ -108,7 +108,7 @@ def main():
         return f'color: {color}; font-weight: bold'
         
     styled_preds = df_preds.style.map(color_risk, subset=['risk_level'])
-    st.dataframe(styled_preds, use_container_width=True, hide_index=True)
+    st.dataframe(styled_preds, width='stretch', hide_index=True)
     st.caption("Predicted RUL is capped at 125 cycles; green values mean at least that many cycles remain. Failure date assumes flights per day from the aircraft record.")
 
     st.write("---")
@@ -132,11 +132,11 @@ def main():
                 if row['status'] == 'CANNOT ARRIVE IN TIME':
                     st.error(f"[CRITICAL] **{row['aircraft_id']} ({row['component']})**: {row['alert_message']}")
                 elif row['status'] == 'ORDER NOW':
-                    st.error(f"Å¡  **{row['aircraft_id']} ({row['component']})**: {row['alert_message']}")
+                    st.error(f"[CRITICAL] **{row['aircraft_id']} ({row['component']})**: {row['alert_message']}")
                 elif row['status'] == 'WATCH':
-                    st.warning(f"Å¡  **{row['aircraft_id']} ({row['component']})**: {row['alert_message']}")
+                    st.warning(f"[WARN] **{row['aircraft_id']} ({row['component']})**: {row['alert_message']}")
             
-            st.dataframe(alerts_df.drop(columns=['alert_message']), use_container_width=True, hide_index=True)
+            st.dataframe(alerts_df.drop(columns=['alert_message']), width='stretch', hide_index=True)
         else:
             st.success("No amber or red components require spares checking currently.")
             
@@ -166,11 +166,13 @@ def main():
         fig.add_trace(go.Scatter(x=forecast_df['Date'], y=forecast_df['Plan'], mode='lines+markers', name='Follow Planner Schedule'))
         fig.add_trace(go.Scatter(x=forecast_df['Date'], y=forecast_df['No Action'], mode='lines+markers', name='No Action (Reactive)', line=dict(dash='dash', color='red')))
         fig.update_layout(yaxis_title="Ready Aircraft", yaxis=dict(range=[0, 24]), margin=dict(l=0, r=0, t=30, b=0))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width='stretch')
     elif 'alerts_df' in locals() and alerts_df.empty:
         st.info("Fleet is perfectly healthy; forecast is 24/24 ready.")
             
 if __name__ == '__main__':
     main()
+
+
 
 

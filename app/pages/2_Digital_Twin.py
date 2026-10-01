@@ -5,21 +5,23 @@ if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
 import streamlit as st
 import pandas as pd
+import time
 import plotly.graph_objects as go
 from ml.replay import replay
-from ml.config import DEMO_ENGINE_ID, RED_BELOW, AMBER_BELOW, RUL_CLIP, AS_OF, DATA_DIR
+from ml.config import DEMO_ENGINE_ID, DEMO_AIRCRAFT_ID, RED_BELOW, AMBER_BELOW, RUL_CLIP, AS_OF, DATA_DIR, AVG_FLIGHT_HOURS_PER_CYCLE
 from datetime import datetime, timedelta
 from ml.alerts import get_spares_status
+from ml.dates import get_failure_date
 
 def main():
     st.title("Digital Twin Replay")
     st.caption(f"Demo as-of date: {AS_OF} (fixed)")
     
     df_master = pd.read_csv(DATA_DIR / 'aircraft_master.csv')
-    ac_info = df_master[df_master['engine_ids'].str.contains(str(DEMO_ENGINE_ID))].iloc[0]
+    ac_info = df_master[df_master['aircraft_id'] == DEMO_AIRCRAFT_ID].iloc[0]
     fpd = ac_info['flights_per_day']
     
-    st.info(f"**Aircraft {ac_info['aircraft_id']}** (Type: {ac_info['type']}, Flights/day: {fpd}) — engine_1 replaced by held-out engine {DEMO_ENGINE_ID} for replay.")
+    st.info(f"**Aircraft {ac_info['aircraft_id']}** (Type: {ac_info['type']}, Flights/day: {fpd}) - engine_1 replaced by held-out engine {DEMO_ENGINE_ID} for replay.")
     
     if 'replay_df' not in st.session_state:
         st.session_state.replay_df = replay(DEMO_ENGINE_ID)
@@ -27,7 +29,26 @@ def main():
     df = st.session_state.replay_df
     max_cycle = int(df['cycle'].max())
     
-    c = st.slider("Cycle (Playback)", min_value=1, max_value=max_cycle, value=1, step=1, key="slider")
+    # Restored Controls
+    if 'current_cycle' not in st.session_state:
+        st.session_state.current_cycle = 1
+    if 'is_playing' not in st.session_state:
+        st.session_state.is_playing = False
+        
+    control_cols = st.columns([1, 1, 1, 3])
+    if control_cols[0].button("Play", key="play_btn"):
+        st.session_state.is_playing = True
+    if control_cols[1].button("Pause", key="pause_btn"):
+        st.session_state.is_playing = False
+    if control_cols[2].button("Reset", key="reset_btn"):
+        st.session_state.is_playing = False
+        st.session_state.current_cycle = 1
+        
+    playback_speed = control_cols[3].slider("Playback Speed (cycles/sec)", 1, 10, 2, key="speed")
+    
+    c = st.slider("Cycle (Playback)", min_value=1, max_value=max_cycle, value=st.session_state.current_cycle, step=1, key="slider")
+    st.session_state.current_cycle = c
+    
     history = df[df['cycle'] <= c].copy()
     current_state = history.iloc[-1]
     
@@ -37,13 +58,16 @@ def main():
     health = current_state['health_score']
     
     as_of_dt = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M")
+    sim_now = as_of_dt + timedelta(days=(c - 1) / fpd)
     
     # What-if Logic
-    st.sidebar.subheader("What-If Analysis")
-    extra_hours = st.sidebar.slider("Extra Flight Hours", 0.0, 50.0, 0.0, 1.0)
-    extra_cycles = extra_hours / 1.5 # AVG_FLIGHT_HOURS_PER_CYCLE
+    with st.sidebar.expander("What-If Analysis", expanded=False):
+        extra_hours = st.number_input("Extra Flight Hours", value=0.0, step=1.0)
+    extra_cycles = extra_hours / AVG_FLIGHT_HOURS_PER_CYCLE
     sim_rul = max(0, rul - extra_cycles)
     sim_risk = 'red' if sim_rul < RED_BELOW else ('amber' if sim_rul <= AMBER_BELOW else 'green')
+    
+    st.write(f"**Simulated Clock:** {sim_now.strftime('%Y-%m-%d %H:%M')}")
     
     metric_cols = st.columns(4)
     metric_cols[0].metric("Current Cycle", int(c))
@@ -55,17 +79,19 @@ def main():
     metric_cols[2].markdown(f"### Risk: :{risk_color}[{sim_risk.upper()}]")
     
     days_to_fail = sim_rul / fpd
-    fail_date = as_of_dt + timedelta(days=days_to_fail)
-    metric_cols[3].metric("Predicted Failure", f"{fail_date.strftime('%Y-%m-%d')}")
+    fail_date = get_failure_date(sim_rul, fpd) if extra_hours == 0 else (sim_now + timedelta(days=days_to_fail)).strftime("%Y-%m-%d")
+    
+    metric_cols[3].metric("Predicted Failure", fail_date)
     metric_cols[3].caption(f"{days_to_fail:.1f} days to failure")
+    
+    st.metric("Health Index (RUL-scaled)", f"{min(100, max(0, sim_rul / RUL_CLIP * 100)):.1f}/100")
     
     df_parts = pd.read_csv(DATA_DIR / 'parts_catalog.csv')
     df_spares = pd.read_csv(DATA_DIR / 'spares_inventory.csv')
     df_ws = pd.read_csv(DATA_DIR / 'workshops.csv')
     min_turnaround = df_ws['turnaround_days'].min()
     
-    # Spares Logic
-    part_row = df_parts[(df_parts['type'] == ac_info['type']) & (df_parts['component'] == 'engine_1')]
+    part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')]
     if not part_row.empty:
         eng_part_no = part_row.iloc[0]['part_no']
         eng_lead = part_row.iloc[0]['lead_time_days']
@@ -79,13 +105,13 @@ def main():
         msg = f"**Spares Alert**: Part {eng_part_no} fails in {days_to_fail:.1f} days, stock {stock_agg}, lead time {eng_lead} days, repair {min_turnaround} days. Status: **{status}**"
         
         if status in ["CANNOT ARRIVE IN TIME", "ORDER NOW"]:
-            st.error("🚨 " + msg)
+            st.error("[CRITICAL] " + msg)
         elif status == "SCHEDULE NOW (IN STOCK)":
-            st.error("🛠️ " + msg)
+            st.error("[MAINTENANCE] " + msg)
         elif status == "WATCH":
-            st.warning("⚠️ " + msg)
+            st.warning("[WARN] " + msg)
         else:
-            st.success("✅ " + msg)
+            st.success("[OK] " + msg)
             
     c1, c2 = st.columns(2)
     
@@ -97,9 +123,9 @@ def main():
             std = df[sens].std()
             if std > 0:
                 y_norm = (history[sens] - baseline) / std
-                fig_sens.add_trace(go.Scatter(x=history['cycle'], y=y_norm, mode='lines', name=sens.split('_')[0]))
+                fig_sens.add_trace(go.Scatter(x=history['cycle'], y=y_norm, mode='lines', name=sens))
         fig_sens.update_layout(xaxis_title="Cycle", yaxis_title="Z-Score Deviation", margin=dict(l=0, r=0, t=30, b=0))
-        st.plotly_chart(fig_sens, use_container_width=True)
+        st.plotly_chart(fig_sens, width='stretch')
         
     with c2:
         st.subheader("RUL Trajectory")
@@ -117,7 +143,15 @@ def main():
             yaxis=dict(title="RUL Cycles", range=[0, 135]),
             margin=dict(l=0, r=0, t=30, b=0)
         )
-        st.plotly_chart(fig_rul, use_container_width=True)
+        st.plotly_chart(fig_rul, width='stretch')
+        
+    if st.session_state.is_playing:
+        if st.session_state.current_cycle < max_cycle:
+            time.sleep(1.0 / playback_speed)
+            st.session_state.current_cycle += 1
+            st.rerun()
+        else:
+            st.session_state.is_playing = False
 
 if __name__ == '__main__':
     main()

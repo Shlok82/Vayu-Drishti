@@ -51,7 +51,7 @@ def main():
         
         for i, eng in enumerate(engs):
             rul = rul_map.get(eng, 100)
-            rul_clipped = max(0.0, min(float(rul), float(RUL_CLIP)))
+            rul_clipped = round(max(0.0, min(float(rul), float(RUL_CLIP))), 1)
             
             if rul_clipped < RED_BELOW:
                 risk = 'red'
@@ -60,14 +60,15 @@ def main():
             else:
                 risk = 'green'
                 
-            fail_date = current_date + timedelta(days=rul_clipped / flights_per_day)
+            from ml.dates import get_failure_date
+            fail_date = get_failure_date(rul_clipped, flights_per_day)
             health = min(100.0, max(0.0, (rul_clipped / RUL_CLIP) * 100.0))
             
             predictions.append({
                 'aircraft_id': ac_id,
                 'component': f'engine_{i+1}',
-                'predicted_rul_cycles': round(rul_clipped, 1),
-                'predicted_failure_date': fail_date.strftime("%Y-%m-%d"),
+                'predicted_rul_cycles': rul_clipped,
+                'predicted_failure_date': fail_date,
                 'risk_level': risk,
                 'health_score': round(health, 1),
                 'generated_at': generated_at,
@@ -80,4 +81,7 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
 

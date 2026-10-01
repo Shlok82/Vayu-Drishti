@@ -110,3 +110,4 @@ def simulate_forecast(df_master, df_preds, recs_df, days=30):
         'Plan': planned_ready
     })
 
+

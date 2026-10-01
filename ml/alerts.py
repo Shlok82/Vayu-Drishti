@@ -34,12 +34,13 @@ def generate_alerts(df_preds, df_master, df_parts, df_spares, df_ws=None):
     as_of_dt = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M")
     
     urgency_df = urgency_df.merge(df_master[['aircraft_id', 'type', 'flights_per_day']], on='aircraft_id', how='left')
-    urgency_df['days_to_failure'] = urgency_df['predicted_rul_cycles'] / urgency_df['flights_per_day']
+    from ml.dates import get_days_to_failure
+    urgency_df['days_to_failure'] = urgency_df.apply(lambda row: get_days_to_failure(row['predicted_rul_cycles'], row['flights_per_day']), axis=1)
     
     # We need to map variants. The components in df_preds are just 'engine_1' etc.
     # We must match by aircraft_id and component? But parts_catalog only has 'type'.
     # Our synthetic data parts_catalog uses the 'type' string like 'Generic Fighter Trainer - V1'
-    urgency_df = urgency_df.merge(df_parts[['type', 'component', 'part_no', 'lead_time_days']], on=['type', 'component'], how='left')
+    urgency_df = urgency_df.merge(df_parts[['aircraft_id', 'component', 'part_no', 'lead_time_days']], on=['aircraft_id', 'component'], how='left')
     
     stock_agg = df_spares.groupby('part_no')['qty_on_hand'].sum().reset_index()
     reorder_agg = df_spares.groupby('part_no')['reorder_level'].max().reset_index()
@@ -97,3 +98,6 @@ def generate_alerts(df_preds, df_master, df_parts, df_spares, df_ws=None):
         })
         
     return pd.DataFrame(alerts)
+
+
+

@@ -1,51 +1,145 @@
-type,component,part_no,lead_time_days
-Generic Fighter Trainer - V1,engine_1,PN-ENG-F101,20
-Generic Fighter Trainer - V1,engine_2,PN-ENG-F102,26
-Generic Fighter Trainer - V1,hydraulic_pump,PN-HYD-GEN (Simulated),5
-Generic Fighter Trainer - V1,generator,PN-GEN-GEN (Simulated),7
-Generic Fighter Trainer - V1,avionics_unit,PN-AVI-GEN (Simulated),11
-Generic Fighter Trainer - V1,landing_gear_actuator,PN-LGA-GEN (Simulated),5
-Generic Fighter Trainer - V88,engine_1,PN-ENG-F101-V88,25
-Generic Fighter Trainer - V88,engine_2,PN-ENG-F102-V88,29
-Generic Transport Aircraft - V6,engine_1,PN-ENG-T201-V6,23
-Generic Transport Aircraft - V6,engine_2,PN-ENG-T202-V6,24
-Generic Fighter Trainer - V73,engine_1,PN-ENG-F101-V73,19
-Generic Fighter Trainer - V73,engine_2,PN-ENG-F102-V73,25
-Generic Transport Aircraft - V30,engine_1,PN-ENG-T201-V30,22
-Generic Transport Aircraft - V30,engine_2,PN-ENG-T202-V30,17
-Generic Fighter Trainer - V99,engine_1,PN-ENG-F101-V99,19
-Generic Fighter Trainer - V99,engine_2,PN-ENG-F102-V99,28
-Generic Transport Aircraft - V21,engine_1,PN-ENG-T201-V21,24
-Generic Transport Aircraft - V21,engine_2,PN-ENG-T202-V21,29
-Generic Fighter Trainer - V13,engine_1,PN-ENG-F101-V13,25
-Generic Fighter Trainer - V13,engine_2,PN-ENG-F102-V13,22
-Generic Transport Aircraft - V79,engine_1,PN-ENG-T201-V79,16
-Generic Transport Aircraft - V79,engine_2,PN-ENG-T202-V79,22
-Generic Transport Aircraft - V70,engine_1,PN-ENG-T201-V70,19
-Generic Transport Aircraft - V70,engine_2,PN-ENG-T202-V70,22
-Generic Fighter Trainer - V72,engine_1,PN-ENG-F101-V72,18
-Generic Fighter Trainer - V72,engine_2,PN-ENG-F102-V72,29
-Generic Transport Aircraft - V75,engine_1,PN-ENG-T201-V75,27
-Generic Transport Aircraft - V75,engine_2,PN-ENG-T202-V75,21
-Generic Fighter Trainer - V100,engine_1,PN-ENG-F101-V100,23
-Generic Fighter Trainer - V100,engine_2,PN-ENG-F102-V100,18
-Generic Fighter Trainer - V50,engine_1,PN-ENG-F101-V50,17
-Generic Fighter Trainer - V50,engine_2,PN-ENG-F102-V50,30
-Generic Transport Aircraft - V22,engine_1,PN-ENG-T201-V22,27
-Generic Transport Aircraft - V22,engine_2,PN-ENG-T202-V22,29
-Generic Transport Aircraft - V91,engine_1,PN-ENG-T201-V91,24
-Generic Transport Aircraft - V91,engine_2,PN-ENG-T202-V91,16
-Generic Fighter Trainer - V70,engine_1,PN-ENG-F101-V70,30
-Generic Fighter Trainer - V70,engine_2,PN-ENG-F102-V70,17
-Generic Transport Aircraft - V36,engine_1,PN-ENG-T201-V36,22
-Generic Transport Aircraft - V36,engine_2,PN-ENG-T202-V36,17
-Generic Transport Aircraft - V100,engine_1,PN-ENG-T201-V100,25
-Generic Transport Aircraft - V100,engine_2,PN-ENG-T202-V100,24
-Generic Transport Aircraft - V53,engine_1,PN-ENG-T201-V53,18
-Generic Transport Aircraft - V53,engine_2,PN-ENG-T202-V53,23
-Generic Transport Aircraft - V29,engine_1,PN-ENG-T201-V29,22
-Generic Transport Aircraft - V29,engine_2,PN-ENG-T202-V29,24
-Generic Transport Aircraft - V20,engine_1,PN-ENG-T201-V20,24
-Generic Transport Aircraft - V20,engine_2,PN-ENG-T202-V20,18
-Generic Transport Aircraft - V97,engine_1,PN-ENG-T201-V97,23
-Generic Transport Aircraft - V97,engine_2,PN-ENG-T202-V97,23
+aircraft_id,type,component,part_no,lead_time_days
+AF-1001,Generic Fighter Trainer,engine_1,PN-ENG-F101,20
+AF-1001,Generic Fighter Trainer,engine_2,PN-ENG-F101-2,14
+AF-1001,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),10
+AF-1001,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),8
+AF-1001,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),15
+AF-1001,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),12
+AF-1002,Generic Fighter Trainer,engine_1,PN-ENG-F101,20
+AF-1002,Generic Fighter Trainer,engine_2,PN-ENG-F101-2,11
+AF-1002,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),15
+AF-1002,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),12
+AF-1002,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),7
+AF-1002,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),9
+AF-1003,Generic Fighter Trainer,engine_1,PN-ENG-P2,22
+AF-1003,Generic Fighter Trainer,engine_2,PN-ENG-P2-2,23
+AF-1003,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),14
+AF-1003,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),11
+AF-1003,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),14
+AF-1003,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),11
+AF-1004,Generic Fighter Trainer,engine_1,PN-ENG-P3,22
+AF-1004,Generic Fighter Trainer,engine_2,PN-ENG-P3-2,19
+AF-1004,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),13
+AF-1004,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),12
+AF-1004,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),6
+AF-1004,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),5
+AF-1005,Generic Fighter Trainer,engine_1,PN-ENG-P7,18
+AF-1005,Generic Fighter Trainer,engine_2,PN-ENG-P7-2,19
+AF-1005,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),15
+AF-1005,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),7
+AF-1005,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),15
+AF-1005,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),11
+AF-1006,Generic Fighter Trainer,engine_1,PN-ENG-P5,17
+AF-1006,Generic Fighter Trainer,engine_2,PN-ENG-P5-2,27
+AF-1006,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),11
+AF-1006,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),14
+AF-1006,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),12
+AF-1006,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),13
+AF-1007,Generic Transport Aircraft,engine_1,PN-ENG-P3,15
+AF-1007,Generic Transport Aircraft,engine_2,PN-ENG-P3-2,18
+AF-1007,Generic Transport Aircraft,hydraulic_pump,PN-HYD-GEN (Simulated),15
+AF-1007,Generic Transport Aircraft,generator,PN-GEN-GEN (Simulated),13
+AF-1007,Generic Transport Aircraft,avionics_unit,PN-AVI-GEN (Simulated),9
+AF-1007,Generic Transport Aircraft,landing_gear_actuator,PN-LGA-GEN (Simulated),15
+AF-1008,Generic Fighter Trainer,engine_1,PN-ENG-P4,18
+AF-1008,Generic Fighter Trainer,engine_2,PN-ENG-P4-2,24
+AF-1008,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),11
+AF-1008,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),7
+AF-1008,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),12
+AF-1008,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),5
+AF-1009,Generic Transport Aircraft,engine_1,PN-ENG-P7,23
+AF-1009,Generic Transport Aircraft,engine_2,PN-ENG-P7-2,20
+AF-1009,Generic Transport Aircraft,hydraulic_pump,PN-HYD-GEN (Simulated),13
+AF-1009,Generic Transport Aircraft,generator,PN-GEN-GEN (Simulated),6
+AF-1009,Generic Transport Aircraft,avionics_unit,PN-AVI-GEN (Simulated),15
+AF-1009,Generic Transport Aircraft,landing_gear_actuator,PN-LGA-GEN (Simulated),9
+AF-1010,Generic Transport Aircraft,engine_1,PN-ENG-P6,21
+AF-1010,Generic Transport Aircraft,engine_2,PN-ENG-P6-2,19
+AF-1010,Generic Transport Aircraft,hydraulic_pump,PN-HYD-GEN (Simulated),10
+AF-1010,Generic Transport Aircraft,generator,PN-GEN-GEN (Simulated),7
+AF-1010,Generic Transport Aircraft,avionics_unit,PN-AVI-GEN (Simulated),13
+AF-1010,Generic Transport Aircraft,landing_gear_actuator,PN-LGA-GEN (Simulated),13
+AF-1011,Generic Transport Aircraft,engine_1,PN-ENG-P1,25
+AF-1011,Generic Transport Aircraft,engine_2,PN-ENG-P1-2,30
+AF-1011,Generic Transport Aircraft,hydraulic_pump,PN-HYD-GEN (Simulated),5
+AF-1011,Generic Transport Aircraft,generator,PN-GEN-GEN (Simulated),6
+AF-1011,Generic Transport Aircraft,avionics_unit,PN-AVI-GEN (Simulated),10
+AF-1011,Generic Transport Aircraft,landing_gear_actuator,PN-LGA-GEN (Simulated),9
+AF-1012,Generic Fighter Trainer,engine_1,PN-ENG-P2,16
+AF-1012,Generic Fighter Trainer,engine_2,PN-ENG-P2-2,22
+AF-1012,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),14
+AF-1012,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),6
+AF-1012,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),6
+AF-1012,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),12
+AF-1013,Generic Transport Aircraft,engine_1,PN-ENG-P1,19
+AF-1013,Generic Transport Aircraft,engine_2,PN-ENG-P1-2,19
+AF-1013,Generic Transport Aircraft,hydraulic_pump,PN-HYD-GEN (Simulated),15
+AF-1013,Generic Transport Aircraft,generator,PN-GEN-GEN (Simulated),12
+AF-1013,Generic Transport Aircraft,avionics_unit,PN-AVI-GEN (Simulated),13
+AF-1013,Generic Transport Aircraft,landing_gear_actuator,PN-LGA-GEN (Simulated),7
+AF-1014,Generic Transport Aircraft,engine_1,PN-ENG-P5,28
+AF-1014,Generic Transport Aircraft,engine_2,PN-ENG-P5-2,21
+AF-1014,Generic Transport Aircraft,hydraulic_pump,PN-HYD-GEN (Simulated),13
+AF-1014,Generic Transport Aircraft,generator,PN-GEN-GEN (Simulated),8
+AF-1014,Generic Transport Aircraft,avionics_unit,PN-AVI-GEN (Simulated),9
+AF-1014,Generic Transport Aircraft,landing_gear_actuator,PN-LGA-GEN (Simulated),11
+AF-1015,Generic Fighter Trainer,engine_1,PN-ENG-P6,29
+AF-1015,Generic Fighter Trainer,engine_2,PN-ENG-P6-2,29
+AF-1015,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),6
+AF-1015,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),8
+AF-1015,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),8
+AF-1015,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),6
+AF-1016,Generic Fighter Trainer,engine_1,PN-ENG-P4,15
+AF-1016,Generic Fighter Trainer,engine_2,PN-ENG-P4-2,22
+AF-1016,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),14
+AF-1016,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),8
+AF-1016,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),5
+AF-1016,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),6
+AF-1017,Generic Transport Aircraft,engine_1,PN-ENG-F101,20
+AF-1017,Generic Transport Aircraft,engine_2,PN-ENG-F101-2,8
+AF-1017,Generic Transport Aircraft,hydraulic_pump,PN-HYD-GEN (Simulated),6
+AF-1017,Generic Transport Aircraft,generator,PN-GEN-GEN (Simulated),5
+AF-1017,Generic Transport Aircraft,avionics_unit,PN-AVI-GEN (Simulated),10
+AF-1017,Generic Transport Aircraft,landing_gear_actuator,PN-LGA-GEN (Simulated),6
+AF-1018,Generic Fighter Trainer,engine_1,PN-ENG-P3,23
+AF-1018,Generic Fighter Trainer,engine_2,PN-ENG-P3-2,30
+AF-1018,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),8
+AF-1018,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),13
+AF-1018,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),7
+AF-1018,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),14
+AF-1019,Generic Transport Aircraft,engine_1,PN-ENG-P7,22
+AF-1019,Generic Transport Aircraft,engine_2,PN-ENG-P7-2,30
+AF-1019,Generic Transport Aircraft,hydraulic_pump,PN-HYD-GEN (Simulated),11
+AF-1019,Generic Transport Aircraft,generator,PN-GEN-GEN (Simulated),8
+AF-1019,Generic Transport Aircraft,avionics_unit,PN-AVI-GEN (Simulated),6
+AF-1019,Generic Transport Aircraft,landing_gear_actuator,PN-LGA-GEN (Simulated),6
+AF-1020,Generic Fighter Trainer,engine_1,PN-ENG-P6,26
+AF-1020,Generic Fighter Trainer,engine_2,PN-ENG-P6-2,28
+AF-1020,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),11
+AF-1020,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),12
+AF-1020,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),5
+AF-1020,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),15
+AF-1021,Generic Fighter Trainer,engine_1,PN-ENG-P1,16
+AF-1021,Generic Fighter Trainer,engine_2,PN-ENG-P1-2,27
+AF-1021,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),10
+AF-1021,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),6
+AF-1021,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),8
+AF-1021,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),8
+AF-1022,Generic Fighter Trainer,engine_1,PN-ENG-P3,29
+AF-1022,Generic Fighter Trainer,engine_2,PN-ENG-P3-2,19
+AF-1022,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),11
+AF-1022,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),7
+AF-1022,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),9
+AF-1022,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),12
+AF-1023,Generic Fighter Trainer,engine_1,PN-ENG-P3,17
+AF-1023,Generic Fighter Trainer,engine_2,PN-ENG-P3-2,29
+AF-1023,Generic Fighter Trainer,hydraulic_pump,PN-HYD-GEN (Simulated),13
+AF-1023,Generic Fighter Trainer,generator,PN-GEN-GEN (Simulated),6
+AF-1023,Generic Fighter Trainer,avionics_unit,PN-AVI-GEN (Simulated),5
+AF-1023,Generic Fighter Trainer,landing_gear_actuator,PN-LGA-GEN (Simulated),15
+AF-1024,Generic Transport Aircraft,engine_1,PN-ENG-F101,20
+AF-1024,Generic Transport Aircraft,engine_2,PN-ENG-F101-2,6
+AF-1024,Generic Transport Aircraft,hydraulic_pump,PN-HYD-GEN (Simulated),8
+AF-1024,Generic Transport Aircraft,generator,PN-GEN-GEN (Simulated),7
+AF-1024,Generic Transport Aircraft,avionics_unit,PN-AVI-GEN (Simulated),11
+AF-1024,Generic Transport Aircraft,landing_gear_actuator,PN-LGA-GEN (Simulated),12

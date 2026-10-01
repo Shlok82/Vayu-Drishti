@@ -105,8 +105,8 @@ def main():
             as_of_dt = pd.to_datetime(trouble_comps['generated_at'].iloc[0])
             trouble_comps['days_to_failure'] = (pd.to_datetime(trouble_comps['predicted_failure_date']) - as_of_dt).dt.days
             
-            trouble_comps['type'] = ac_info['type']
-            merged = trouble_comps.merge(df_parts, on=['type', 'component'], how='left')
+            
+            merged = trouble_comps.merge(df_parts, on=['aircraft_id', 'component'], how='left')
             
             total_stock = df_spares.groupby('part_no')['qty_on_hand'].sum().reset_index()
             max_reorder = df_spares.groupby('part_no')['reorder_level'].max().reset_index()
@@ -131,7 +131,7 @@ def main():
             merged['status'] = statuses
             
             for _, row in merged[merged['status'] == 'ORDER NOW'].iterrows():
-                st.error(f"Å¡  **{row['Component Label']}**: Part {row['part_no']} fails in {row['days_to_failure']} days, stock {row['qty_on_hand']}, lead time {row['lead_time_days']} days. **ORDER NOW**")
+                st.error(f" **{row['Component Label']}**: Part {row['part_no']} fails in {row['days_to_failure']} days, stock {row['qty_on_hand']}, lead time {row['lead_time_days']} days. **ORDER NOW**")
                 
             st.dataframe(merged[['Component Label', 'part_no', 'days_to_failure', 'qty_on_hand', 'lead_time_days', 'status']], use_container_width=True, hide_index=True)
         else:
@@ -181,6 +181,8 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
 
 
 

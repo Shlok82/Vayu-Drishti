@@ -77,7 +77,7 @@ def check_day2():
         if not order_now.empty:
             print("PASS: found RED part with 0 stock and long lead time")
             # print details for the report
-            print(f"      -> {order_now.iloc[0]['aircraft_id']} / {order_now.iloc[0]['component']} (Part {order_now.iloc[0]['part_no']})")
+            print(f"      -> {order_now['aircraft_id'].iloc[0]} / {order_now['component'].iloc[0]} (Part {order_now['part_no'].iloc[0]})")
         else:
             print("FAIL: no RED part with 0 stock and long lead time")
             raise AssertionError("No RED part meets Spares ORDER NOW criteria")
@@ -165,4 +165,5 @@ def check_day2():
         
 if __name__ == '__main__':
     check_day2()
+
 

@@ -18,7 +18,8 @@ def get_recommendations(alerts_df, df_ws, df_sched, df_master):
     alerts_df = alerts_df.sort_values(['risk_score', 'days_to_failure'])
     
     ws_cap = df_ws.set_index('workshop_id')['capacity_slots'].to_dict()
-    ws_usage = {ws: {} for ws in ws_cap}
+    # Track usage per specific capacity slot: ws_usage[ws_id][slot_index][date] = bool
+    ws_usage = {ws: {s: set() for s in range(cap)} for ws, cap in ws_cap.items()}
     
     recs = []
     for _, alert in alerts_df.iterrows():
@@ -30,90 +31,96 @@ def get_recommendations(alerts_df, df_ws, df_sched, df_master):
         
         part_arrival = as_of_dt + timedelta(days=part_lt)
         
-        # Determine valid workshops (can be any for now, just pick fastest turnaround)
         best_ws = None
         best_slot_start = None
         best_slot_end = None
+        best_slot_index = None
         best_cost = float('inf')
         best_missions = []
         best_flag = ""
         best_action = ""
+        best_out_of_horizon = False
         
-        # Consider all workshops, find the first available slot >= part_arrival
+        # Consider all workshops
         for _, ws in df_ws.iterrows():
             ws_id = ws['workshop_id']
             ta = ws['turnaround_days']
             cap = ws_cap[ws_id]
             
-            # Start searching from part arrival or AS_OF
             search_start = max(as_of_dt, part_arrival).date()
-            fail_date_only = fail_date.date()
+            latest_start = fail_date.date() - timedelta(days=ta)
             
-            # Find earliest slot that fits capacity
-            slot_start = search_start
-            while True:
-                # Check capacity for `ta` days
-                can_fit = True
-                for d in range(ta):
-                    d_date = slot_start + timedelta(days=d)
-                    if ws_usage[ws_id].get(d_date, 0) >= cap:
-                        can_fit = False
-                        break
-                if can_fit:
-                    break
-                slot_start += timedelta(days=1)
-                
-            slot_end = slot_start + timedelta(days=ta)
+            # Find the best slot from search_start up to something far (e.g. search_start + 60)
+            # We want to check all candidate dates from search_start to max(latest_start, search_start + 60)
+            end_search = max(latest_start, search_start + timedelta(days=60))
             
-            # Evaluate missions affected
-            missions = []
-            cost = 0
-            # Filter schedule for this aircraft
-            ac_sched = df_sched[df_sched['aircraft_id'] == ac]
-            
-            out_of_horizon = False
-            for d in range(ta):
-                d_date = slot_start + timedelta(days=d)
-                days_from_as_of = (d_date - as_of_dt.date()).days
-                if days_from_as_of >= 60:
-                    out_of_horizon = True
-                    break
+            candidate_date = search_start
+            while candidate_date <= end_search:
+                # Can it fit in any slot index of this workshop?
+                for slot_idx in range(cap):
+                    can_fit = True
+                    for d in range(ta):
+                        if (candidate_date + timedelta(days=d)) in ws_usage[ws_id][slot_idx]:
+                            can_fit = False
+                            break
+                    if can_fit:
+                        # Evaluate missions affected
+                        missions = []
+                        cost = 0
+                        has_high_priority = False
+                        
+                        ac_sched = df_sched[df_sched['aircraft_id'] == ac]
+                        out_of_horizon = False
+                        
+                        for d in range(ta):
+                            d_date = candidate_date + timedelta(days=d)
+                            days_from_as_of = (datetime.combine(d_date, datetime.min.time()) - as_of_dt).days
+                            if days_from_as_of >= 60:
+                                out_of_horizon = True
+                                break
+                            
+                            day_missions = ac_sched[ac_sched['date'] == d_date.strftime("%Y-%m-%d")]
+                            for _, m in day_missions.iterrows():
+                                m_id = m['mission_id']
+                                prio = m['priority']
+                                if prio == 'high': has_high_priority = True
+                                w = MISSION_PRIORITY_WEIGHTS.get(prio, 1)
+                                missions.append({'id': m_id, 'priority': prio, 'date': d_date.strftime("%Y-%m-%d")})
+                                cost += w
+                                
+                        # Determine flags for this candidate
+                        slot_end = candidate_date + timedelta(days=ta)
+                        
+                        flag = ""
+                        action = ""
+                        if part_arrival.date() > fail_date.date():
+                            flag = "PART_ARRIVES_AFTER_FAILURE"
+                            action = "Expedite part or plan to ground aircraft."
+                        elif slot_end > fail_date.date():
+                            flag = "REPAIR_ENDS_AFTER_FAILURE"
+                            action = "Cannibalise part or accept downtime."
+                        elif has_high_priority:
+                            flag = "HIGH_PRIORITY_CONFLICT"
+                            action = "Reschedule missions."
+                            
+                        # If this is strictly better (lower cost) or (same cost but earlier)
+                        if best_ws is None or cost < best_cost or (cost == best_cost and candidate_date < best_slot_start.date()):
+                            best_ws = ws_id
+                            best_slot_start = datetime.combine(candidate_date, datetime.min.time())
+                            best_slot_end = datetime.combine(slot_end, datetime.min.time())
+                            best_slot_index = slot_idx
+                            best_cost = cost
+                            best_missions = missions
+                            best_flag = flag
+                            best_action = action
+                            best_out_of_horizon = out_of_horizon
+                            
+                candidate_date += timedelta(days=1)
                 
-                day_missions = ac_sched[ac_sched['date'] == d_date.strftime("%Y-%m-%d")]
-                for _, m in day_missions.iterrows():
-                    m_id = m['mission_id']
-                    prio = m['priority']
-                    w = MISSION_PRIORITY_WEIGHTS.get(prio, 1)
-                    missions.append({'id': m_id, 'priority': prio, 'date': d_date.strftime("%Y-%m-%d")})
-                    cost += w
-                    
-            flag = ""
-            action = ""
-            if part_arrival.date() > fail_date_only:
-                flag = "PART_ARRIVES_AFTER_FAILURE"
-                action = "Expedite part or plan to ground aircraft."
-            elif slot_end > fail_date_only:
-                flag = "REPAIR_ENDS_AFTER_FAILURE"
-                action = "Cannibalise part or accept downtime."
-            elif cost > 0:
-                flag = "HIGH_PRIORITY_CONFLICT"
-                action = "Reschedule missions."
-                
-            if best_ws is None or cost < best_cost or (cost == best_cost and slot_start < best_slot_start):
-                best_ws = ws_id
-                best_slot_start = slot_start
-                best_slot_end = slot_end
-                best_cost = cost
-                best_missions = missions
-                best_flag = flag
-                best_action = action
-                best_out_of_horizon = out_of_horizon
-                
-        # Commit to best_ws
+        # Commit to the best slot
         ta = df_ws[df_ws['workshop_id'] == best_ws]['turnaround_days'].iloc[0]
         for d in range(ta):
-            d_date = best_slot_start + timedelta(days=d)
-            ws_usage[best_ws][d_date] = ws_usage[best_ws].get(d_date, 0) + 1
+            ws_usage[best_ws][best_slot_index].add((best_slot_start + timedelta(days=d)).date())
             
         m_count = len(best_missions)
         m_text = "outside schedule horizon" if best_out_of_horizon else m_count
@@ -122,6 +129,8 @@ def get_recommendations(alerts_df, df_ws, df_sched, df_master):
             'aircraft_id': ac,
             'component': comp,
             'workshop_id': best_ws,
+            'capacity_slot': best_slot_index + 1,
+            'lane_id': f"{best_ws} (Slot {best_slot_index + 1})",
             'slot_start': best_slot_start.strftime("%Y-%m-%d"),
             'slot_end': best_slot_end.strftime("%Y-%m-%d"),
             'missions_affected_count': m_text,

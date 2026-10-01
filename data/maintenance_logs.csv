@@ -1,152 +1,151 @@
 log_id,aircraft_id,component,date,kind,action,downtime_days
-LOG-0001,AF-1001,engine_2,2025-12-21,scheduled,Calibration,1
-LOG-0002,AF-1001,avionics_unit,2026-01-05,scheduled,Software Update,4
-LOG-0003,AF-1001,avionics_unit,2026-09-21,scheduled,Component Replacement,1
-LOG-0004,AF-1001,generator,2026-08-25,unscheduled,Component Replacement,12
-LOG-0005,AF-1001,engine_1,2026-05-23,scheduled,Calibration,3
-LOG-0006,AF-1001,hydraulic_pump,2025-09-29,scheduled,Routine Inspection,2
-LOG-0007,AF-1001,engine_2,2025-08-10,scheduled,Component Replacement,2
-LOG-0008,AF-1001,generator,2025-08-04,scheduled,Calibration,2
-LOG-0009,AF-1001,generator,2026-01-19,unscheduled,Routine Inspection,5
-LOG-0010,AF-1002,hydraulic_pump,2025-06-06,scheduled,Software Update,2
-LOG-0011,AF-1002,landing_gear_actuator,2025-11-22,scheduled,Routine Inspection,2
-LOG-0012,AF-1002,engine_1,2026-03-17,unscheduled,Calibration,8
-LOG-0013,AF-1003,engine_1,2025-10-06,unscheduled,Calibration,13
-LOG-0014,AF-1003,engine_1,2026-06-04,unscheduled,Calibration,5
-LOG-0015,AF-1003,generator,2026-06-11,unscheduled,Calibration,8
-LOG-0016,AF-1003,hydraulic_pump,2025-04-25,scheduled,Component Replacement,4
-LOG-0017,AF-1003,hydraulic_pump,2026-08-16,unscheduled,Component Replacement,3
-LOG-0018,AF-1003,landing_gear_actuator,2025-07-16,scheduled,Calibration,3
-LOG-0019,AF-1003,landing_gear_actuator,2026-05-26,unscheduled,Calibration,11
-LOG-0020,AF-1004,avionics_unit,2025-10-31,unscheduled,Calibration,14
-LOG-0021,AF-1004,landing_gear_actuator,2026-05-23,scheduled,Software Update,4
-LOG-0022,AF-1004,hydraulic_pump,2026-04-05,unscheduled,Routine Inspection,9
-LOG-0023,AF-1004,generator,2025-12-11,scheduled,Calibration,4
-LOG-0024,AF-1004,avionics_unit,2025-07-05,unscheduled,Component Replacement,13
-LOG-0025,AF-1004,avionics_unit,2025-06-03,scheduled,Calibration,1
-LOG-0026,AF-1004,engine_2,2025-10-22,scheduled,Calibration,2
-LOG-0027,AF-1004,engine_2,2026-03-11,scheduled,Routine Inspection,1
-LOG-0028,AF-1004,landing_gear_actuator,2025-06-01,scheduled,Software Update,4
-LOG-0029,AF-1005,engine_2,2025-09-02,unscheduled,Component Replacement,9
-LOG-0030,AF-1005,engine_2,2026-09-25,scheduled,Component Replacement,4
-LOG-0031,AF-1005,engine_1,2025-04-18,unscheduled,Component Replacement,3
-LOG-0032,AF-1005,generator,2025-06-20,scheduled,Calibration,4
-LOG-0033,AF-1005,engine_2,2025-05-02,unscheduled,Software Update,11
-LOG-0034,AF-1005,landing_gear_actuator,2025-06-01,unscheduled,Component Replacement,7
-LOG-0035,AF-1006,hydraulic_pump,2025-04-15,unscheduled,Component Replacement,13
-LOG-0036,AF-1006,hydraulic_pump,2025-07-07,scheduled,Component Replacement,3
-LOG-0037,AF-1006,engine_2,2025-10-22,unscheduled,Routine Inspection,11
-LOG-0038,AF-1006,landing_gear_actuator,2026-04-29,scheduled,Component Replacement,4
-LOG-0039,AF-1006,hydraulic_pump,2026-02-23,scheduled,Software Update,4
-LOG-0040,AF-1006,generator,2025-06-10,unscheduled,Component Replacement,3
-LOG-0041,AF-1006,engine_1,2025-08-28,scheduled,Software Update,4
-LOG-0042,AF-1007,generator,2025-11-29,unscheduled,Component Replacement,9
-LOG-0043,AF-1007,engine_1,2026-02-18,unscheduled,Software Update,9
-LOG-0044,AF-1007,landing_gear_actuator,2025-08-28,unscheduled,Software Update,13
-LOG-0045,AF-1007,generator,2026-04-14,unscheduled,Routine Inspection,5
-LOG-0046,AF-1007,generator,2026-09-03,scheduled,Component Replacement,4
-LOG-0047,AF-1007,hydraulic_pump,2026-03-28,scheduled,Software Update,3
-LOG-0048,AF-1007,generator,2026-02-26,unscheduled,Calibration,8
-LOG-0049,AF-1007,generator,2025-12-20,unscheduled,Routine Inspection,7
-LOG-0050,AF-1008,landing_gear_actuator,2026-08-08,unscheduled,Routine Inspection,6
-LOG-0051,AF-1008,engine_1,2026-08-20,scheduled,Component Replacement,2
-LOG-0052,AF-1008,landing_gear_actuator,2026-04-27,scheduled,Software Update,2
-LOG-0053,AF-1009,hydraulic_pump,2026-02-19,unscheduled,Calibration,14
-LOG-0054,AF-1009,engine_1,2026-04-12,scheduled,Calibration,2
-LOG-0055,AF-1009,generator,2026-09-04,unscheduled,Software Update,12
-LOG-0056,AF-1009,landing_gear_actuator,2026-03-11,scheduled,Routine Inspection,2
-LOG-0057,AF-1010,landing_gear_actuator,2026-05-30,scheduled,Software Update,3
-LOG-0058,AF-1010,generator,2025-09-16,scheduled,Routine Inspection,3
-LOG-0059,AF-1010,landing_gear_actuator,2025-05-17,scheduled,Calibration,4
-LOG-0060,AF-1010,landing_gear_actuator,2025-06-17,scheduled,Component Replacement,4
-LOG-0061,AF-1010,generator,2025-04-14,unscheduled,Software Update,12
-LOG-0062,AF-1010,engine_1,2025-07-11,unscheduled,Component Replacement,8
-LOG-0063,AF-1010,avionics_unit,2025-12-19,unscheduled,Software Update,6
-LOG-0064,AF-1011,engine_2,2025-10-21,scheduled,Calibration,4
-LOG-0065,AF-1011,hydraulic_pump,2025-05-19,scheduled,Calibration,3
-LOG-0066,AF-1011,avionics_unit,2025-12-18,unscheduled,Routine Inspection,11
-LOG-0067,AF-1011,generator,2026-03-19,scheduled,Software Update,2
-LOG-0068,AF-1011,generator,2026-01-27,unscheduled,Software Update,13
-LOG-0069,AF-1011,generator,2026-09-13,scheduled,Component Replacement,3
-LOG-0070,AF-1011,generator,2026-01-24,unscheduled,Calibration,13
-LOG-0071,AF-1011,hydraulic_pump,2025-10-13,unscheduled,Calibration,14
-LOG-0072,AF-1011,engine_2,2025-06-23,unscheduled,Calibration,7
-LOG-0073,AF-1012,engine_2,2026-03-17,unscheduled,Component Replacement,4
-LOG-0074,AF-1012,engine_1,2026-02-21,unscheduled,Calibration,7
-LOG-0075,AF-1012,engine_2,2026-03-16,unscheduled,Calibration,6
-LOG-0076,AF-1012,engine_1,2025-11-25,scheduled,Calibration,2
-LOG-0077,AF-1013,engine_1,2025-12-05,scheduled,Routine Inspection,4
-LOG-0078,AF-1013,hydraulic_pump,2025-12-13,unscheduled,Software Update,10
-LOG-0079,AF-1013,engine_1,2026-03-26,scheduled,Software Update,3
-LOG-0080,AF-1014,engine_2,2025-08-16,unscheduled,Routine Inspection,4
-LOG-0081,AF-1014,engine_1,2026-05-01,unscheduled,Component Replacement,4
-LOG-0082,AF-1014,generator,2025-07-31,scheduled,Software Update,4
-LOG-0083,AF-1014,avionics_unit,2025-11-30,unscheduled,Routine Inspection,7
-LOG-0084,AF-1015,engine_2,2026-03-02,scheduled,Routine Inspection,3
-LOG-0085,AF-1015,engine_1,2026-01-28,scheduled,Component Replacement,1
-LOG-0086,AF-1015,hydraulic_pump,2025-08-08,unscheduled,Software Update,14
-LOG-0087,AF-1015,landing_gear_actuator,2026-08-28,scheduled,Calibration,3
-LOG-0088,AF-1016,generator,2026-07-20,scheduled,Component Replacement,3
-LOG-0089,AF-1016,engine_2,2026-06-05,scheduled,Calibration,2
-LOG-0090,AF-1016,avionics_unit,2026-07-19,scheduled,Calibration,2
-LOG-0091,AF-1016,landing_gear_actuator,2025-12-09,unscheduled,Software Update,4
-LOG-0092,AF-1016,generator,2025-11-23,unscheduled,Software Update,7
-LOG-0093,AF-1016,avionics_unit,2026-07-10,scheduled,Calibration,4
-LOG-0094,AF-1016,landing_gear_actuator,2026-01-17,scheduled,Component Replacement,1
-LOG-0095,AF-1016,engine_2,2026-09-09,unscheduled,Routine Inspection,12
-LOG-0096,AF-1016,avionics_unit,2025-06-06,unscheduled,Component Replacement,7
-LOG-0097,AF-1016,hydraulic_pump,2025-07-11,unscheduled,Software Update,4
-LOG-0098,AF-1017,engine_2,2025-10-24,unscheduled,Routine Inspection,13
-LOG-0099,AF-1017,hydraulic_pump,2025-10-28,unscheduled,Software Update,14
-LOG-0100,AF-1017,hydraulic_pump,2025-08-16,scheduled,Routine Inspection,4
-LOG-0101,AF-1017,avionics_unit,2026-01-15,unscheduled,Software Update,4
-LOG-0102,AF-1017,engine_2,2026-09-29,unscheduled,Routine Inspection,9
-LOG-0103,AF-1017,landing_gear_actuator,2025-04-18,unscheduled,Software Update,12
-LOG-0104,AF-1017,avionics_unit,2025-07-05,scheduled,Calibration,2
-LOG-0105,AF-1017,engine_1,2026-05-19,unscheduled,Software Update,10
-LOG-0106,AF-1017,avionics_unit,2026-09-01,scheduled,Calibration,2
-LOG-0107,AF-1018,generator,2025-08-09,scheduled,Routine Inspection,2
-LOG-0108,AF-1018,avionics_unit,2026-06-02,scheduled,Calibration,4
-LOG-0109,AF-1018,engine_2,2025-12-25,unscheduled,Software Update,10
-LOG-0110,AF-1019,engine_1,2026-05-05,unscheduled,Component Replacement,6
-LOG-0111,AF-1019,engine_1,2025-12-22,unscheduled,Calibration,8
-LOG-0112,AF-1019,engine_2,2025-12-15,unscheduled,Software Update,12
-LOG-0113,AF-1019,avionics_unit,2025-06-30,unscheduled,Calibration,8
-LOG-0114,AF-1019,landing_gear_actuator,2025-09-09,unscheduled,Component Replacement,8
-LOG-0115,AF-1019,engine_1,2026-01-29,unscheduled,Software Update,6
-LOG-0116,AF-1019,generator,2025-11-09,unscheduled,Software Update,14
-LOG-0117,AF-1019,avionics_unit,2026-04-28,unscheduled,Component Replacement,3
-LOG-0118,AF-1019,avionics_unit,2025-10-26,scheduled,Routine Inspection,4
-LOG-0119,AF-1019,landing_gear_actuator,2025-06-20,scheduled,Software Update,2
-LOG-0120,AF-1020,avionics_unit,2026-07-16,unscheduled,Calibration,7
-LOG-0121,AF-1020,hydraulic_pump,2025-08-19,scheduled,Software Update,3
-LOG-0122,AF-1020,landing_gear_actuator,2025-05-19,scheduled,Component Replacement,1
-LOG-0123,AF-1020,engine_1,2025-12-10,scheduled,Software Update,1
-LOG-0124,AF-1020,engine_1,2026-06-20,unscheduled,Calibration,5
-LOG-0125,AF-1021,hydraulic_pump,2025-11-02,scheduled,Calibration,3
-LOG-0126,AF-1021,avionics_unit,2025-07-16,scheduled,Software Update,2
-LOG-0127,AF-1021,avionics_unit,2026-03-30,scheduled,Routine Inspection,2
-LOG-0128,AF-1022,engine_2,2026-01-27,unscheduled,Component Replacement,12
-LOG-0129,AF-1022,landing_gear_actuator,2025-06-15,unscheduled,Calibration,10
-LOG-0130,AF-1022,engine_1,2026-09-21,unscheduled,Component Replacement,7
-LOG-0131,AF-1022,landing_gear_actuator,2025-07-05,unscheduled,Calibration,12
-LOG-0132,AF-1022,engine_2,2025-07-23,unscheduled,Calibration,10
-LOG-0133,AF-1022,generator,2025-09-02,unscheduled,Component Replacement,4
-LOG-0134,AF-1022,engine_1,2025-09-28,unscheduled,Calibration,14
-LOG-0135,AF-1022,avionics_unit,2025-08-21,unscheduled,Routine Inspection,3
-LOG-0136,AF-1022,engine_2,2025-05-10,unscheduled,Calibration,6
-LOG-0137,AF-1023,hydraulic_pump,2026-01-17,scheduled,Routine Inspection,1
-LOG-0138,AF-1023,engine_1,2025-07-06,scheduled,Component Replacement,3
-LOG-0139,AF-1023,engine_2,2025-12-02,unscheduled,Software Update,14
-LOG-0140,AF-1023,engine_2,2026-03-09,scheduled,Calibration,3
-LOG-0141,AF-1023,engine_1,2026-01-10,unscheduled,Calibration,7
-LOG-0142,AF-1023,landing_gear_actuator,2025-06-08,scheduled,Component Replacement,2
-LOG-0143,AF-1024,hydraulic_pump,2025-09-21,scheduled,Routine Inspection,4
-LOG-0144,AF-1024,avionics_unit,2026-05-27,unscheduled,Calibration,8
-LOG-0145,AF-1024,generator,2025-09-05,unscheduled,Component Replacement,4
-LOG-0146,AF-1024,landing_gear_actuator,2026-09-05,unscheduled,Component Replacement,12
-LOG-0147,AF-1024,landing_gear_actuator,2026-07-28,unscheduled,Calibration,14
-LOG-0148,AF-1024,engine_1,2025-08-08,scheduled,Routine Inspection,2
-LOG-0149,AF-1024,engine_2,2025-11-23,unscheduled,Routine Inspection,4
-LOG-0150,AF-1024,landing_gear_actuator,2026-05-15,unscheduled,Calibration,10
-LOG-0151,AF-1024,generator,2025-07-28,scheduled,Routine Inspection,4
+LOG-0001,AF-1001,engine_2,2026-09-22,unscheduled,Routine Inspection,13
+LOG-0002,AF-1001,hydraulic_pump,2026-01-03,scheduled,Component Replacement,1
+LOG-0003,AF-1001,landing_gear_actuator,2025-12-16,scheduled,Component Replacement,3
+LOG-0004,AF-1001,engine_1,2026-01-03,unscheduled,Routine Inspection,7
+LOG-0005,AF-1001,hydraulic_pump,2025-07-24,unscheduled,Routine Inspection,3
+LOG-0006,AF-1001,avionics_unit,2026-05-20,unscheduled,Software Update,5
+LOG-0007,AF-1001,landing_gear_actuator,2025-07-20,scheduled,Routine Inspection,1
+LOG-0008,AF-1002,generator,2026-08-25,unscheduled,Component Replacement,12
+LOG-0009,AF-1002,engine_1,2026-05-23,scheduled,Calibration,3
+LOG-0010,AF-1002,hydraulic_pump,2025-09-29,scheduled,Routine Inspection,2
+LOG-0011,AF-1002,engine_2,2025-08-10,scheduled,Component Replacement,2
+LOG-0012,AF-1002,generator,2025-08-04,scheduled,Calibration,2
+LOG-0013,AF-1003,engine_1,2025-12-31,scheduled,Software Update,1
+LOG-0014,AF-1003,hydraulic_pump,2025-06-06,scheduled,Software Update,2
+LOG-0015,AF-1003,landing_gear_actuator,2025-11-22,scheduled,Routine Inspection,2
+LOG-0016,AF-1003,engine_1,2026-03-17,unscheduled,Calibration,8
+LOG-0017,AF-1003,landing_gear_actuator,2025-12-19,unscheduled,Software Update,13
+LOG-0018,AF-1003,engine_2,2025-10-26,scheduled,Calibration,1
+LOG-0019,AF-1004,landing_gear_actuator,2026-08-22,scheduled,Calibration,4
+LOG-0020,AF-1004,generator,2025-11-13,unscheduled,Routine Inspection,12
+LOG-0021,AF-1004,engine_1,2026-03-20,unscheduled,Software Update,3
+LOG-0022,AF-1004,engine_1,2025-04-16,scheduled,Software Update,3
+LOG-0023,AF-1004,landing_gear_actuator,2025-10-27,unscheduled,Routine Inspection,13
+LOG-0024,AF-1004,hydraulic_pump,2025-11-27,unscheduled,Software Update,13
+LOG-0025,AF-1004,engine_2,2025-08-14,unscheduled,Component Replacement,11
+LOG-0026,AF-1005,avionics_unit,2025-09-07,scheduled,Software Update,3
+LOG-0027,AF-1005,generator,2026-09-30,unscheduled,Component Replacement,7
+LOG-0028,AF-1005,landing_gear_actuator,2025-11-05,unscheduled,Software Update,10
+LOG-0029,AF-1005,landing_gear_actuator,2026-02-24,unscheduled,Component Replacement,14
+LOG-0030,AF-1005,engine_1,2026-07-06,unscheduled,Calibration,11
+LOG-0031,AF-1005,engine_2,2026-02-02,unscheduled,Component Replacement,6
+LOG-0032,AF-1005,avionics_unit,2026-09-05,scheduled,Software Update,2
+LOG-0033,AF-1005,landing_gear_actuator,2026-07-18,unscheduled,Component Replacement,9
+LOG-0034,AF-1005,engine_2,2025-09-02,unscheduled,Component Replacement,9
+LOG-0035,AF-1006,landing_gear_actuator,2026-06-13,unscheduled,Component Replacement,6
+LOG-0036,AF-1006,engine_1,2025-04-18,unscheduled,Component Replacement,3
+LOG-0037,AF-1006,generator,2025-06-20,scheduled,Calibration,4
+LOG-0038,AF-1007,hydraulic_pump,2025-07-01,scheduled,Software Update,4
+LOG-0039,AF-1007,landing_gear_actuator,2026-01-20,unscheduled,Software Update,11
+LOG-0040,AF-1007,landing_gear_actuator,2026-01-29,unscheduled,Routine Inspection,10
+LOG-0041,AF-1007,hydraulic_pump,2025-12-12,scheduled,Calibration,3
+LOG-0042,AF-1007,generator,2026-07-10,scheduled,Component Replacement,2
+LOG-0043,AF-1007,generator,2026-04-27,scheduled,Software Update,1
+LOG-0044,AF-1007,engine_2,2025-10-27,unscheduled,Routine Inspection,9
+LOG-0045,AF-1007,avionics_unit,2025-07-27,unscheduled,Routine Inspection,12
+LOG-0046,AF-1007,hydraulic_pump,2025-09-06,unscheduled,Calibration,3
+LOG-0047,AF-1008,hydraulic_pump,2025-07-28,scheduled,Component Replacement,4
+LOG-0048,AF-1008,hydraulic_pump,2025-07-11,unscheduled,Software Update,3
+LOG-0049,AF-1008,avionics_unit,2025-08-12,scheduled,Component Replacement,4
+LOG-0050,AF-1008,engine_1,2026-09-03,unscheduled,Routine Inspection,12
+LOG-0051,AF-1008,engine_1,2025-07-19,scheduled,Component Replacement,4
+LOG-0052,AF-1008,generator,2026-01-07,unscheduled,Component Replacement,8
+LOG-0053,AF-1008,generator,2025-10-31,unscheduled,Calibration,9
+LOG-0054,AF-1008,landing_gear_actuator,2026-01-15,scheduled,Routine Inspection,4
+LOG-0055,AF-1008,landing_gear_actuator,2026-08-08,unscheduled,Routine Inspection,6
+LOG-0056,AF-1009,avionics_unit,2026-08-30,scheduled,Routine Inspection,2
+LOG-0057,AF-1009,landing_gear_actuator,2026-04-27,scheduled,Software Update,2
+LOG-0058,AF-1009,hydraulic_pump,2026-06-05,scheduled,Calibration,4
+LOG-0059,AF-1010,avionics_unit,2026-06-05,scheduled,Routine Inspection,3
+LOG-0060,AF-1010,generator,2026-09-04,unscheduled,Software Update,12
+LOG-0061,AF-1010,landing_gear_actuator,2026-03-11,scheduled,Routine Inspection,2
+LOG-0062,AF-1010,avionics_unit,2025-11-26,scheduled,Calibration,1
+LOG-0063,AF-1010,engine_1,2025-07-19,unscheduled,Calibration,4
+LOG-0064,AF-1011,landing_gear_actuator,2025-05-17,scheduled,Calibration,4
+LOG-0065,AF-1011,landing_gear_actuator,2025-06-17,scheduled,Component Replacement,4
+LOG-0066,AF-1011,generator,2025-04-14,unscheduled,Software Update,12
+LOG-0067,AF-1011,engine_1,2025-07-11,unscheduled,Component Replacement,8
+LOG-0068,AF-1011,avionics_unit,2025-12-19,unscheduled,Software Update,6
+LOG-0069,AF-1011,hydraulic_pump,2025-09-07,unscheduled,Software Update,3
+LOG-0070,AF-1011,hydraulic_pump,2026-03-28,unscheduled,Calibration,6
+LOG-0071,AF-1011,avionics_unit,2025-10-17,unscheduled,Calibration,12
+LOG-0072,AF-1011,landing_gear_actuator,2026-09-20,scheduled,Component Replacement,1
+LOG-0073,AF-1012,generator,2025-05-18,scheduled,Software Update,4
+LOG-0074,AF-1012,generator,2026-09-13,scheduled,Component Replacement,3
+LOG-0075,AF-1012,generator,2026-01-24,unscheduled,Calibration,13
+LOG-0076,AF-1012,hydraulic_pump,2025-10-13,unscheduled,Calibration,14
+LOG-0077,AF-1012,engine_2,2025-06-23,unscheduled,Calibration,7
+LOG-0078,AF-1012,landing_gear_actuator,2026-05-30,scheduled,Routine Inspection,3
+LOG-0079,AF-1012,hydraulic_pump,2026-03-25,scheduled,Software Update,2
+LOG-0080,AF-1012,hydraulic_pump,2025-04-11,unscheduled,Component Replacement,4
+LOG-0081,AF-1012,engine_1,2026-02-10,unscheduled,Calibration,5
+LOG-0082,AF-1013,landing_gear_actuator,2025-12-24,scheduled,Calibration,1
+LOG-0083,AF-1013,avionics_unit,2026-05-24,unscheduled,Routine Inspection,4
+LOG-0084,AF-1013,hydraulic_pump,2025-12-13,unscheduled,Software Update,10
+LOG-0085,AF-1013,engine_1,2026-03-26,scheduled,Software Update,3
+LOG-0086,AF-1013,avionics_unit,2026-07-26,unscheduled,Routine Inspection,10
+LOG-0087,AF-1014,engine_2,2026-04-28,scheduled,Routine Inspection,3
+LOG-0088,AF-1014,avionics_unit,2026-06-01,unscheduled,Component Replacement,12
+LOG-0089,AF-1014,avionics_unit,2025-09-06,unscheduled,Calibration,10
+LOG-0090,AF-1015,landing_gear_actuator,2025-11-22,scheduled,Component Replacement,1
+LOG-0091,AF-1015,engine_2,2026-02-26,unscheduled,Routine Inspection,13
+LOG-0092,AF-1015,engine_1,2026-01-28,scheduled,Component Replacement,1
+LOG-0093,AF-1015,hydraulic_pump,2025-08-08,unscheduled,Software Update,14
+LOG-0094,AF-1015,landing_gear_actuator,2026-08-28,scheduled,Calibration,3
+LOG-0095,AF-1015,landing_gear_actuator,2025-06-23,scheduled,Calibration,2
+LOG-0096,AF-1015,landing_gear_actuator,2026-03-12,unscheduled,Component Replacement,4
+LOG-0097,AF-1015,engine_1,2026-05-01,unscheduled,Routine Inspection,5
+LOG-0098,AF-1015,generator,2026-04-14,unscheduled,Calibration,12
+LOG-0099,AF-1016,hydraulic_pump,2025-06-08,unscheduled,Software Update,14
+LOG-0100,AF-1016,avionics_unit,2025-05-06,unscheduled,Routine Inspection,10
+LOG-0101,AF-1016,avionics_unit,2026-08-21,unscheduled,Calibration,14
+LOG-0102,AF-1016,landing_gear_actuator,2026-01-17,scheduled,Component Replacement,1
+LOG-0103,AF-1017,avionics_unit,2025-12-29,scheduled,Software Update,2
+LOG-0104,AF-1017,landing_gear_actuator,2025-07-05,unscheduled,Software Update,5
+LOG-0105,AF-1017,generator,2025-05-15,scheduled,Calibration,4
+LOG-0106,AF-1018,generator,2025-11-06,scheduled,Calibration,2
+LOG-0107,AF-1018,avionics_unit,2025-05-11,unscheduled,Software Update,13
+LOG-0108,AF-1018,hydraulic_pump,2026-08-24,unscheduled,Calibration,4
+LOG-0109,AF-1018,landing_gear_actuator,2025-11-03,scheduled,Routine Inspection,4
+LOG-0110,AF-1018,avionics_unit,2025-06-14,unscheduled,Component Replacement,3
+LOG-0111,AF-1018,engine_1,2025-09-25,unscheduled,Software Update,13
+LOG-0112,AF-1018,hydraulic_pump,2026-03-06,unscheduled,Component Replacement,11
+LOG-0113,AF-1018,landing_gear_actuator,2025-07-09,unscheduled,Routine Inspection,4
+LOG-0114,AF-1019,avionics_unit,2026-04-21,unscheduled,Routine Inspection,11
+LOG-0115,AF-1019,generator,2025-08-09,scheduled,Routine Inspection,2
+LOG-0116,AF-1019,avionics_unit,2026-06-02,scheduled,Calibration,4
+LOG-0117,AF-1019,engine_2,2025-12-25,unscheduled,Software Update,10
+LOG-0118,AF-1019,avionics_unit,2025-06-20,scheduled,Component Replacement,4
+LOG-0119,AF-1019,generator,2025-04-28,scheduled,Calibration,1
+LOG-0120,AF-1020,landing_gear_actuator,2025-04-29,unscheduled,Calibration,3
+LOG-0121,AF-1020,avionics_unit,2025-11-29,unscheduled,Software Update,5
+LOG-0122,AF-1020,generator,2025-05-23,unscheduled,Software Update,8
+LOG-0123,AF-1020,engine_2,2025-11-05,scheduled,Software Update,2
+LOG-0124,AF-1020,landing_gear_actuator,2025-08-06,scheduled,Software Update,3
+LOG-0125,AF-1020,generator,2025-09-05,unscheduled,Component Replacement,13
+LOG-0126,AF-1020,generator,2026-08-24,scheduled,Routine Inspection,3
+LOG-0127,AF-1020,generator,2026-06-20,unscheduled,Component Replacement,3
+LOG-0128,AF-1021,avionics_unit,2026-07-16,unscheduled,Calibration,7
+LOG-0129,AF-1021,hydraulic_pump,2025-08-19,scheduled,Software Update,3
+LOG-0130,AF-1021,landing_gear_actuator,2025-05-19,scheduled,Component Replacement,1
+LOG-0131,AF-1021,engine_1,2025-12-10,scheduled,Software Update,1
+LOG-0132,AF-1021,engine_1,2026-06-20,unscheduled,Calibration,5
+LOG-0133,AF-1022,hydraulic_pump,2025-11-02,scheduled,Calibration,3
+LOG-0134,AF-1022,avionics_unit,2025-07-16,scheduled,Software Update,2
+LOG-0135,AF-1022,avionics_unit,2026-03-30,scheduled,Routine Inspection,2
+LOG-0136,AF-1023,engine_2,2026-01-27,unscheduled,Component Replacement,12
+LOG-0137,AF-1023,landing_gear_actuator,2025-06-15,unscheduled,Calibration,10
+LOG-0138,AF-1023,engine_1,2026-09-21,unscheduled,Component Replacement,7
+LOG-0139,AF-1023,landing_gear_actuator,2025-07-05,unscheduled,Calibration,12
+LOG-0140,AF-1023,engine_2,2025-07-23,unscheduled,Calibration,10
+LOG-0141,AF-1023,generator,2025-09-02,unscheduled,Component Replacement,4
+LOG-0142,AF-1023,engine_1,2025-09-28,unscheduled,Calibration,14
+LOG-0143,AF-1023,avionics_unit,2025-08-21,unscheduled,Routine Inspection,3
+LOG-0144,AF-1023,engine_2,2025-05-10,unscheduled,Calibration,6
+LOG-0145,AF-1024,hydraulic_pump,2026-01-17,scheduled,Routine Inspection,1
+LOG-0146,AF-1024,engine_1,2025-07-06,scheduled,Component Replacement,3
+LOG-0147,AF-1024,engine_2,2025-12-02,unscheduled,Software Update,14
+LOG-0148,AF-1024,engine_2,2026-03-09,scheduled,Calibration,3
+LOG-0149,AF-1024,engine_1,2026-01-10,unscheduled,Calibration,7
+LOG-0150,AF-1024,landing_gear_actuator,2025-06-08,scheduled,Component Replacement,2
