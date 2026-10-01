@@ -14,9 +14,9 @@ Fragmented data, delayed fault prediction, avoidable aircraft downtime, and sub-
                                                 [ Streamlit Dashboard ]
                                                 (Fleet Digital Twin & Planner)
 ```
-- **Data Layer:** Merges synthetic maintenance logs, spares stock, workshops, and flight schedules.
+- **Data Layer:** Merges synthetic maintenance logs, parts catalog, spares stock, workshops, and flight schedules.
 - **Model:** XGBoost RUL (Remaining Useful Life) regression based on NASA's C-MAPSS dataset.
-- **App:** Streamlit UI providing a fleet digital twin, alerts, and mission-aware planner.
+- **App:** Streamlit UI providing a fleet overview, aircraft digital twin, and alerts.
 
 ## Setup
 1. Clone this repository.
@@ -32,6 +32,7 @@ Fragmented data, delayed fault prediction, avoidable aircraft downtime, and sub-
 4. Run the ML pipeline:
    ```cmd
    python ml\train_baseline.py
+   python ml\evaluate.py
    python ml\make_synthetic.py
    python ml\make_predictions.py
    ```
@@ -53,12 +54,17 @@ C-MAPSS is a public NASA *civil turbofan simulation*, not data from any real air
 - **RUL is clipped at 125 cycles:** Predictions above this are considered healthy (green).
 - **No feature scaling:** We do not scale features because tree-based models like XGBoost are scale-invariant.
 - **Engine-ID Split:** We strictly split train/validation data by engine ID, never by row, to prevent data leakage.
+- **Synthetic Maintenance Data:** `maintenance_logs` has 6-18 months of history. Downtime for scheduled (1-4 days) and unscheduled (3-14 days). Parts catalog has 5-45 days lead time. Flight schedule generated for 60 days.
 
 ## Model Performance
 - **Environment:** Python 3.13.5 | XGBoost 3.4.1
-- **Validation RMSE:** 16.24 (on 20 held-out engines)
 - **Test RMSE (Raw):** 19.35 (Evaluated on the last cycle of each test engine vs `RUL_FD001.txt` as provided)
 - **Test RMSE (Clipped):** 18.27 (Evaluated on the last cycle, with true RUL capped at 125 cycles)
+
+- **Alert Lead Time:** Time between the first red alert (`< 30 RUL`) and true failure. *(Assuming flights_per_day ranging 0.8 to 2.0; e.g. at 1.5 average)*
+  - *First Crossing:* Mean ~31.0 cycles (approx. 20.6 days). Range: 16-57 cycles (10-38 days).
+  - *Debounced (3 consecutive red cycles):* Mean ~24.4 cycles (approx. 16.2 days). Range: 12-39 cycles (8-26 days).
+  - *Misses:* 0 misses. *Early Alerts (>100 cycles before failure):* 0.
 
 ## Traceability
 

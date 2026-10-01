@@ -99,5 +99,23 @@
         78,
         13,
         32
-    ]
+    ],
+    "rmse_overall_per_cycle": 16.235179352308474,
+    "alert_lead_time_first_crossing": {
+        "mean": 30.95,
+        "median": 30.5,
+        "min": 16.0,
+        "max": 57.0
+    },
+    "alert_lead_time_debounced": {
+        "mean": 24.4,
+        "median": 22.5,
+        "min": 12.0,
+        "max": 39.0
+    },
+    "misses_first": 0,
+    "misses_debounced": 0,
+    "early_alerts": 0,
+    "rmse_at_failure_cycle_heldout": 3.823006406787051,
+    "rmse_at_failure_cycle_heldout_note": "Not comparable to the standard test RMSE since it is evaluated only on held-out training engines."
 }

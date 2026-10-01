@@ -118,7 +118,7 @@ Risk thresholds: red below 30 cycles, amber 30 to 80, green above 80.
 - [x] Compute RMSE on the FD001 test set (last cycle per engine vs `RUL_FD001.txt`)
 - [x] Start the synthetic generator (aircraft master first)
 - [x] Create the repo and folders; Streamlit skeleton; `.gitignore` (exclude zips and raw data)
-- [ ] **Check what the submission portal requires today** (format, size, links, video, deck)
+- [x] **Check what the submission portal requires today** (format, size, links, video, deck) - portal lists no requirements; plan for repo link + deployed link + slides + video
 - [x] Make **dummy** `predictions.csv` (correct columns) so the UI can be built now
 - [x] Fleet overview page on dummy data: cards or table coloured green/amber/red
 - [x] Draft slide outline and README skeleton (include the traceability table from section 0)
@@ -129,14 +129,14 @@ Risk thresholds: red below 30 cycles, amber 30 to 80, green above 80.
 
 ### Day 2: Friday 2 Oct: real predictions and core screens
 
-- [ ] Finish the synthetic generator (all six tables); map engines to tail numbers; save CSVs to `/data`
-- [ ] Generate real `predictions.csv` for the 24-aircraft fleet
-- [ ] Record metrics: RMSE, predicted vs true RUL plot, **alert lead time** (cycles between the first red alert and failure, on held-out engines)
-- [ ] Write the replay function (steps through a held-out engine's rows and returns the updated prediction per step)
-- [ ] Aircraft detail page: sensor trend chart, predicted failure date, maintenance history
-- [ ] Load synthetic CSVs into the app (use `@st.cache_data`)
-- [ ] Swap dummy predictions for the real `predictions.csv` file
-- [ ] Spares check: join failing component to `parts_catalog` and `spares_inventory`, compare lead time with days to failure
+- [x] Finish the synthetic generator (all six tables); map engines to tail numbers; save CSVs to `/data`
+- [x] Generate real `predictions.csv` for the 24-aircraft fleet
+- [x] Record metrics: RMSE, predicted vs true RUL plot, **alert lead time** (cycles between the first red alert and failure, on held-out engines)
+- [x] Write the replay function (steps through a held-out engine's rows and returns the updated prediction per step)
+- [x] Aircraft detail page: sensor trend chart, predicted failure date, maintenance history
+- [x] Load synthetic CSVs into the app (use `@st.cache_data`)
+- [x] Swap dummy predictions for the real `predictions.csv` file
+- [x] Spares check: join failing component to `parts_catalog` and `spares_inventory`, compare lead time with days to failure
 
 **End of day checkpoint:** dashboard shows real predictions with detail pages.
 
@@ -237,6 +237,6 @@ Risk thresholds: red below 30 cycles, amber 30 to 80, green above 80.
 | Date | Done | Blockers |
 |---|---|---|
 | 1 Oct | Folders setup, files organized. RUL baseline XGBoost trained. Synthetic generator and predictions created. Dashboard skeleton built. Day 1 cleanup pass completed and verified. | Portal check and duplicate zip pending (owner: me) |
-| 2 Oct | | |
+| 2 Oct | Synthetic tables complete. Core metrics added to evaluate.py. Replay function implemented. Aircraft detail and Digital Twin UI built. Spares checking logical rules implemented. (Done on 1 Oct, logged as Day 2 in progress) | |
 | 3 Oct | | |
 | 4 Oct | | |
