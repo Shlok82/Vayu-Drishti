@@ -1,9 +1,13 @@
+import sys
+from pathlib import Path
+_root = Path(__file__).resolve().parents[2]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 import streamlit as st
 import pandas as pd
 import os
 import sys
 
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from ml.config import DEMO_AIRCRAFT_ID, DEMO_ENGINE_ID
 
 @st.cache_data
@@ -74,7 +78,7 @@ def main():
     
     st.subheader(f"Fleet Status: {ready_count} of {total_aircraft} ready")
     st.caption("Ready = no red-risk component. Risk thresholds: red < 30 cycles, amber 30 to 80, green > 80.")
-    st.write(f"**🟢 {green_count} Green** | **🟠 {amber_count} Amber** | **🔴 {red_count} Red**")
+    st.write(f"**GREEN {green_count} Green** | **ÅÅ  {amber_count} Amber** | **RED {red_count} Red**")
     
     ac_cards_info.sort(key=lambda x: (x['sort_key'], x['rul']))
     
@@ -126,11 +130,11 @@ def main():
             
             for _, row in alerts_df.iterrows():
                 if row['status'] == 'CANNOT ARRIVE IN TIME':
-                    st.error(f"🚨 **{row['aircraft_id']} ({row['component']})**: {row['alert_message']}")
+                    st.error(f"[CRITICAL] **{row['aircraft_id']} ({row['component']})**: {row['alert_message']}")
                 elif row['status'] == 'ORDER NOW':
-                    st.error(f"⚠️ **{row['aircraft_id']} ({row['component']})**: {row['alert_message']}")
+                    st.error(f"Å¡  **{row['aircraft_id']} ({row['component']})**: {row['alert_message']}")
                 elif row['status'] == 'WATCH':
-                    st.warning(f"⚠️ **{row['aircraft_id']} ({row['component']})**: {row['alert_message']}")
+                    st.warning(f"Å¡  **{row['aircraft_id']} ({row['component']})**: {row['alert_message']}")
             
             st.dataframe(alerts_df.drop(columns=['alert_message']), use_container_width=True, hide_index=True)
         else:
@@ -168,3 +172,5 @@ def main():
             
 if __name__ == '__main__':
     main()
+
+

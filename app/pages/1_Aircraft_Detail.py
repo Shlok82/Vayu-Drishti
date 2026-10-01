@@ -1,3 +1,8 @@
+import sys
+from pathlib import Path
+_root = Path(__file__).resolve().parents[2]
+if str(_root) not in sys.path:
+    sys.path.insert(0, str(_root))
 import streamlit as st
 import pandas as pd
 import os
@@ -5,7 +10,6 @@ import plotly.graph_objects as go
 import sys
 
 # Ensure ml modules can be imported
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 st.set_page_config(page_title="Aircraft Detail - Vayu Drishti", layout="wide")
 
@@ -127,7 +131,7 @@ def main():
             merged['status'] = statuses
             
             for _, row in merged[merged['status'] == 'ORDER NOW'].iterrows():
-                st.error(f"⚠️ **{row['Component Label']}**: Part {row['part_no']} fails in {row['days_to_failure']} days, stock {row['qty_on_hand']}, lead time {row['lead_time_days']} days. **ORDER NOW**")
+                st.error(f"Å¡  **{row['Component Label']}**: Part {row['part_no']} fails in {row['days_to_failure']} days, stock {row['qty_on_hand']}, lead time {row['lead_time_days']} days. **ORDER NOW**")
                 
             st.dataframe(merged[['Component Label', 'part_no', 'days_to_failure', 'qty_on_hand', 'lead_time_days', 'status']], use_container_width=True, hide_index=True)
         else:
@@ -177,3 +181,6 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
