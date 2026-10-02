@@ -24,7 +24,16 @@ def load_resources():
         # Load heldout engines from demo
         _DATA = pd.read_csv(DATA_DIR / 'demo/heldout_engines.csv')
 
+
+def engine_for_aircraft(aircraft_id):
+    import pandas as pd
+    from ml.config import DATA_DIR
+    df_master = pd.read_csv(DATA_DIR / 'aircraft_master.csv')
+    ac_row = df_master[df_master['aircraft_id'] == aircraft_id].iloc[0]
+    return int(ac_row['engine_ids'].split(',')[0])
+
 def replay(engine_id, source="heldout"):
+
     load_resources()
     
     eng_data = _DATA[_DATA['engine'] == engine_id].sort_values('cycle').copy()

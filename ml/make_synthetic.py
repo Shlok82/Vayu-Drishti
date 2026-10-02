@@ -50,11 +50,11 @@ def main():
     green_engine_pairs = [(g_sel[i], g_sel[i+1]) for i in range(0, 32, 2)]
     
     a_sel = np.random.choice(amber_engines, size=6, replace=False).tolist()
-    g2_sel = np.random.choice(list(set(green_engines) - set(g_sel)), size=6, replace=False).tolist()
+    g2_sel = np.random.choice(sorted(list(set(green_engines) - set(g_sel))), size=6, replace=False).tolist()
     amber_engine_pairs = [(a_sel[i], g2_sel[i]) for i in range(6)]
     
     r_sel = np.random.choice(red_engines, size=2, replace=False).tolist()
-    g3_sel = np.random.choice(list(set(green_engines) - set(g_sel) - set(g2_sel)), size=2, replace=False).tolist()
+    g3_sel = np.random.choice(sorted(list(set(green_engines) - set(g_sel) - set(g2_sel))), size=2, replace=False).tolist()
     red_engine_pairs = [(r_sel[i], g3_sel[i]) for i in range(2)]
     
     greens = green_engine_pairs
@@ -146,7 +146,7 @@ def main():
     pd.DataFrame(parts).to_csv('data/parts_catalog.csv', index=False)
     
     # 3. spares_inventory
-    unique_parts = set(p['part_no'] for p in parts)
+    unique_parts = sorted(list(set(p['part_no'] for p in parts)))
     for pn in unique_parts:
         if pn == demo_part:
             stock = 0
@@ -203,11 +203,13 @@ def main():
     pd.DataFrame(logs).to_csv('data/maintenance_logs.csv', index=False)
 
     # 5. workshops
+    # Demo-design choice: Reduced turnaround days to ensure several predictive jobs remain feasible
+    # despite 20-day part lead times and ~30-day alert windows.
     ws_data = [
-        {'workshop_id': 'WS-1', 'location': 'Base Alpha', 'capacity_slots': 3, 'turnaround_days': 10, 'specialisation': 'Engines'},
-        {'workshop_id': 'WS-2', 'location': 'Base Bravo', 'capacity_slots': 2, 'turnaround_days': 5, 'specialisation': 'Avionics'},
-        {'workshop_id': 'WS-3', 'location': 'Base Charlie', 'capacity_slots': 5, 'turnaround_days': 15, 'specialisation': 'General'},
-        {'workshop_id': 'WS-4', 'location': 'Depot Central', 'capacity_slots': 4, 'turnaround_days': 7, 'specialisation': 'Hydraulics'}
+        {'workshop_id': 'WS-1', 'location': 'Base Alpha', 'capacity_slots': 3, 'turnaround_days': 3, 'specialisation': 'Engines'},
+        {'workshop_id': 'WS-2', 'location': 'Base Bravo', 'capacity_slots': 2, 'turnaround_days': 2, 'specialisation': 'Avionics'},
+        {'workshop_id': 'WS-3', 'location': 'Base Charlie', 'capacity_slots': 5, 'turnaround_days': 5, 'specialisation': 'General'},
+        {'workshop_id': 'WS-4', 'location': 'Depot Central', 'capacity_slots': 4, 'turnaround_days': 3, 'specialisation': 'Hydraulics'}
     ]
     pd.DataFrame(ws_data).to_csv('data/workshops.csv', index=False)
     

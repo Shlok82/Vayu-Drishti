@@ -39,7 +39,7 @@ def simulate_run(policy, params, r, df_preds, df_master, df_parts, df_spares, df
                 }
                 
     init_stock = df_spares.groupby('part_no')['qty_on_hand'].sum().to_dict()
-    ws_cap = sim_config['simulation']['workshop_capacity']
+    ws_cap = df_ws['capacity_slots'].sum()
     res_binned = metrics['residuals_binned']
     debounced_mean = metrics['alert_lead_time_debounced']['mean']
     debounced_min = metrics['alert_lead_time_debounced']['min']
@@ -97,7 +97,7 @@ def simulate_run(policy, params, r, df_preds, df_master, df_parts, df_spares, df
                 part_wait = 0
             else:
                 part_wait = lt * params.get('lead_time_multiplier', 1.0)
-            start_repair = int(fail_day) + diag + part_wait
+            start_repair = int(fail_day) + int(diag) + int(part_wait)
             while ws_usage.get(start_repair, 0) >= ws_cap:
                 start_repair += 1
             for d in range(repair):
@@ -194,7 +194,6 @@ def main():
     results['Reactive Base'] = summarize(base_r)
     results['Predictive Base'] = summarize(base_p)
     
-    # Paired differences: P - R for avail, R - P for unsched/missions (so positive is good)
     diff_avail = [p[0] - r[0] for p, r in zip(base_p, base_r)]
     results['Paired Difference'] = {
         'avail_diff_mean': np.mean(diff_avail),
@@ -205,11 +204,10 @@ def main():
         'missions_diff_mean': np.mean([r[2] - p[2] for p, r in zip(base_p, base_r)])
     }
     
-    # Clean raw output
     for k in ['Reactive Base', 'Predictive Base']:
         del results[k]['avails_raw']; del results[k]['unscheds_raw']; del results[k]['missions_raw']
     
-    # 2. Full sensitivity table
+    # Sensitivities output table
     sensitivity_table = []
     
     def eval_sens(param, val, r_params, p_params):
@@ -217,50 +215,93 @@ def main():
         p_res = [simulate_run('predictive', p_params, r, df_preds, df_master, df_parts, df_spares, df_ws, df_sched, metrics, sim_config) for r in range(runs)]
         r_sum = summarize(r_res)
         p_sum = summarize(p_res)
+        
         diff_av = [p[0] - r[0] for p, r in zip(p_res, r_res)]
+        diff_un = [r[1] - p[1] for p, r in zip(p_res, r_res)] # positive is good
+        diff_mi = [r[2] - p[2] for p, r in zip(p_res, r_res)] # positive is good
+        
         wins = sum(1 for d in diff_av if d > 0) / runs
+        
         sensitivity_table.append({
             'Parameter': param,
             'Setting': str(val),
             'Reactive Avail': r_sum['avail_mean'],
             'Predictive Avail': p_sum['avail_mean'],
-            'Pred Wins Frac': wins,
-            'Pred Wins?': wins > 0.5
+            'Delta Avail (+ means predictive better)': np.mean(diff_av),
+            'Reactive Unsched': r_sum['unsched_mean'],
+            'Predictive Unsched': p_sum['unsched_mean'],
+            'Delta Unsched (- means predictive fewer)': -np.mean(diff_un),
+            'Reactive Missions': r_sum['missions_mean'],
+            'Predictive Missions': p_sum['missions_mean'],
+            'Delta Missions (- means predictive fewer)': -np.mean(diff_mi),
+            'Pred Win Rate': wins
         })
-        
-    # Baseline
+        return r_sum, p_sum
+
     eval_sens('Baseline', 'base', sim_config['reactive'], sim_config['predictive'])
     
-    # Diagnosis delay
-    for val in [1, 4]:
+    # Sensitivities
+    for val in sim_config['sensitivities']['diagnosis_delay_days']:
         rp = sim_config['reactive'].copy(); rp['diagnosis_delay_days'] = val
         eval_sens('Diagnosis Delay', val, rp, sim_config['predictive'])
         
-    # Repair days
-    for val, rp_val, pp_val in [('Fast', [1,3], 1), ('Slow', [5,14], 7)]:
+    for rp_val, pp_val in zip(sim_config['sensitivities']['repair_days_reactive'], sim_config['sensitivities']['repair_days_predictive']):
         rp = sim_config['reactive'].copy(); rp['repair_days'] = rp_val
         pp = sim_config['predictive'].copy(); pp['repair_days'] = pp_val
-        eval_sens('Repair Days', val, rp, pp)
+        eval_sens('Repair Days', rp_val, rp, pp)
         
-    # Lead time multiplier
-    for val in [0.5, 1.5]:
+    for val in sim_config['sensitivities']['lead_time_multipliers']:
         rp = sim_config['reactive'].copy(); rp['lead_time_multiplier'] = val
         pp = sim_config['predictive'].copy(); pp['lead_time_multiplier'] = val
         eval_sens('Lead Time Multiplier', val, rp, pp)
         
-    # False alarm rate
-    for val in [0.01, 0.15]:
+    for val in sim_config['sensitivities']['false_alarm_rates']:
         pp = sim_config['predictive'].copy(); pp['false_alarm_rate'] = val
         eval_sens('False Alarm Rate', val, sim_config['reactive'], pp)
         
-    # Alert lead time
-    for val in [0.5, 1.5]:
+    for val in sim_config['sensitivities']['alert_lead_time_multipliers']:
         pp = sim_config['predictive'].copy(); pp['alert_lead_time_multiplier'] = val
         eval_sens('Alert Lead Multiplier', val, sim_config['reactive'], pp)
+
+    # (a) Restore reactive with fast repair
+    fast_rp = sim_config['reactive'].copy()
+    fast_rp['repair_days'] = [1, 3]
+    fast_rp['diagnosis_delay_days'] = 1
+    eval_sens('Reactive Fast Repair vs Base Pred', 'fast', fast_rp, sim_config['predictive'])
+
+    print("\n--- Sensitivity Table ---")
+    for row in sensitivity_table:
+        print(row)
         
-    results['Sensitivity'] = sensitivity_table
+    # (c) Wiring Test Extremes
+    print("\n--- Extreme Wiring Tests (Changes from baseline) ---")
+    base_r_mean = results['Reactive Base']['avail_mean']
+    base_p_mean = results['Predictive Base']['avail_mean']
     
+    rp = sim_config['reactive'].copy(); rp['repair_days'] = [15, 25]; pp = sim_config['predictive'].copy(); pp['repair_days'] = [15, 25]
+    rs, ps = eval_sens('WIRING', 'repair x5', rp, pp)
+    print(f"Repair x5 -> R-avail {rs['avail_mean']:.3f} (delta {rs['avail_mean']-base_r_mean:.3f}), P-avail {ps['avail_mean']:.3f} (delta {ps['avail_mean']-base_p_mean:.3f})")
+    
+    rp = sim_config['reactive'].copy(); rp['diagnosis_delay_days'] = 30
+    rs, _ = eval_sens('WIRING', 'diag 30d', rp, sim_config['predictive'])
+    print(f"Diag 30d -> R-avail {rs['avail_mean']:.3f} (delta {rs['avail_mean']-base_r_mean:.3f})")
+    
+    rp = sim_config['reactive'].copy(); rp['lead_time_multiplier'] = 3.0; pp = sim_config['predictive'].copy(); pp['lead_time_multiplier'] = 3.0
+    rs, ps = eval_sens('WIRING', 'lead x3', rp, pp)
+    print(f"Lead x3 -> R-avail {rs['avail_mean']:.3f} (delta {rs['avail_mean']-base_r_mean:.3f}), P-avail {ps['avail_mean']:.3f} (delta {ps['avail_mean']-base_p_mean:.3f})")
+    
+    pp = sim_config['predictive'].copy(); pp['false_alarm_rate'] = 0.50
+    _, ps = eval_sens('WIRING', 'false alarm 50%', sim_config['reactive'], pp)
+    print(f"FA 50% -> P-avail {ps['avail_mean']:.3f} (delta {ps['avail_mean']-base_p_mean:.3f})")
+    
+    pp = sim_config['predictive'].copy(); pp['alert_lead_time_multiplier'] = 0.0
+    _, ps = eval_sens('WIRING', 'alert lead 0', sim_config['reactive'], pp)
+    print(f"Alert 0 -> P-avail {ps['avail_mean']:.3f} (delta {ps['avail_mean']-base_p_mean:.3f})")
+
+    results['Sensitivity'] = sensitivity_table
+    import os
     os.makedirs('docs', exist_ok=True)
+    import json
     with open('docs/sim_results.json', 'w') as f:
         json.dump(results, f, indent=4)
         
@@ -268,4 +309,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

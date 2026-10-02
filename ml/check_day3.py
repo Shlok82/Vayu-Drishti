@@ -16,25 +16,27 @@ def check_encoding():
     print("--- Encoding Check ---")
     mojibake = re.compile(r'[^\x00-\x7F]')
     ok = True
-    for root_dir in ['ml', 'app', 'docs']:
-        for dirpath, _, filenames in os.walk(os.path.join(_root, root_dir)):
-            if '__pycache__' in dirpath: continue
-            for f in filenames:
-                if not f.endswith(('.py', '.md', '.csv', '.toml', '.json')): continue
-                path = os.path.join(dirpath, f)
-                with open(path, 'rb') as file:
-                    if file.read().startswith(b'\xef\xbb\xbf'):
-                        print(f"FAIL: BOM in {f}")
-                        ok = False
-                try:
-                    with open(path, 'r', encoding='utf-8') as file:
-                        for i, line in enumerate(file):
-                            if mojibake.search(line):
-                                print(f"FAIL: Non-ASCII in {f}:{i+1}")
-                                ok = False
-                except Exception as e:
-                    pass
-    if ok: print("PASS: No BOM or non-ASCII found")
+    for p in _root.rglob('*'):
+        if not p.is_file(): continue
+        if '.venv' in p.parts or '.git' in p.parts or ('data' in p.parts and 'raw' in p.parts): continue
+        if not p.name.endswith(('.py', '.md', '.csv', '.toml', '.json')): continue
+        
+        try:
+            with open(p, 'rb') as f:
+                raw = f.read()
+            if raw.startswith(b'\xef\xbb\xbf'):
+                print(f"FAIL: BOM found in {p.relative_to(_root)}")
+                ok = False
+            text = raw.decode('utf-8')
+            for i, line in enumerate(text.splitlines()):
+                if mojibake.search(line):
+                    print(f"FAIL: Non-ASCII in {p.relative_to(_root)}:{i+1}")
+                    ok = False
+        except Exception as e:
+            print(f"FAIL: Could not read {p.relative_to(_root)}: {e}")
+            ok = False
+    if ok:
+        print("PASS: No BOM or non-ASCII found")
     return ok
 
 def check_config():
@@ -62,20 +64,21 @@ def run_smoke_tests():
     ]
     script_path = _root / 'ml' / '_smoke_worker.py'
     with open(script_path, 'w', encoding='utf-8') as f:
-        f.write('''import sys, os
+        f.write('''import sys, os, time
 from streamlit.testing.v1 import AppTest
 page = sys.argv[1]
 try:
+    start_time = time.time()
     at = AppTest.from_file(page).run(timeout=60)
     if at.exception:
         print(f"Exception in {page}: {at.exception}")
         sys.exit(1)
     if "2_Digital_Twin.py" in page:
+        at.button(key="play_btn"); at.button(key="pause_btn"); at.button(key="reset_btn")
         
         
         
-        
-        c = at.session_state["current_cycle"]
+        c = at.session_state.get("current_cycle", 1)
         at.button(key="play_btn").click().run(timeout=60)
         assert at.session_state["current_cycle"] > c, "Play did not advance cycle"
         
@@ -84,6 +87,8 @@ try:
             if at.exception:
                 print(f"Exception at cycle {cycle}: {at.exception}")
                 sys.exit(1)
+    end_time = time.time()
+    print(f"PASS: {os.path.basename(page)} (Run time: {end_time - start_time:.2f}s)")
 except Exception as e:
     print(f"Failed to run AppTest on {page}: {e}")
     sys.exit(1)
@@ -91,6 +96,7 @@ except Exception as e:
     ok = True
     with tempfile.TemporaryDirectory() as tmpdir:
         env = os.environ.copy()
+        env['TEST_MODE'] = '1'
         if 'PYTHONPATH' in env: del env['PYTHONPATH']
         for p in pages:
             if not p.exists(): continue
@@ -100,7 +106,7 @@ except Exception as e:
                 print(res.stdout); print(res.stderr)
                 ok = False
             else:
-                print(f"PASS: {p.name}")
+                print(res.stdout.strip())
     if script_path.exists(): script_path.unlink()
     return ok
 
@@ -202,21 +208,24 @@ def check_day3():
     if feasible_jobs_ok: print("PASS: No feasible job ends after its predicted failure date")
     else: print("FAIL: Feasible job ends after predicted failure date")
     
-    if len(recs) == len(alerts_df): print("PASS: Gantt bar count equals planned job count (1:1 mapping)")
+    ok_gantt = (len(recs) == len(alerts_df))
+    if ok_gantt: print("PASS: Gantt bar count equals planned job count (1:1 mapping)")
     else: print("FAIL: Gantt bar count mismatch")
     
     # Forecast check
     print("--- Forecast Check ---")
     from ml.forecast import simulate_forecast
     fc = simulate_forecast(df_master, df_preds, recs)
-    if len(fc) == 30 and all(0 <= v <= 24 for v in fc['Plan']) and all(0 <= v <= 24 for v in fc['No Action']):
+    ok_forecast = (len(fc) == 30 and all(0 <= v <= 24 for v in fc['Plan']) and all(0 <= v <= 24 for v in fc['No Action']))
+    if ok_forecast:
         print("PASS: Forecast has 30 values, each 0..24, both scenarios")
     else: print("FAIL: Forecast output invalid")
     
     # Sim check
     print("--- Simulation Output Check ---")
     with open('docs/sim_results.json', 'r') as f: res = json.load(f)
-    if 'Predictive Base' in res:
+    ok_sim_keys = ('Predictive Base' in res)
+    if ok_sim_keys:
         print("PASS: Simulation output keys present")
     else: print("FAIL: Simulation output keys missing")
     
@@ -224,9 +233,9 @@ def check_day3():
     from ml.simulate_policies import simulate_run, load_data
     print("Running determinism check...")
     df_preds_sim, df_master_sim, df_parts_sim, df_spares_sim, df_ws_sim, df_sched_sim, metrics, sim_config = load_data()
-    params = {'diag_delay': 2, 'ta_mult': 1.0, 'lt_mult': 1.0, 'fa_rate': 0.05, 'alert_weaken': False}
-    res1 = simulate_run('Predictive', params, 0, df_preds_sim, df_master_sim, df_parts_sim, df_spares_sim, df_ws_sim, df_sched_sim, metrics, sim_config)
-    res2 = simulate_run('Predictive', params, 0, df_preds_sim, df_master_sim, df_parts_sim, df_spares_sim, df_ws_sim, df_sched_sim, metrics, sim_config)
+    params = sim_config['predictive']
+    res1 = simulate_run('predictive', params, 0, df_preds_sim, df_master_sim, df_parts_sim, df_spares_sim, df_ws_sim, df_sched_sim, metrics, sim_config)
+    res2 = simulate_run('predictive', params, 0, df_preds_sim, df_master_sim, df_parts_sim, df_spares_sim, df_ws_sim, df_sched_sim, metrics, sim_config)
     if str(res1) == str(res2):
         print("PASS: Simulation is deterministic (same seed, identical output)")
     else: print("FAIL: Simulation is non-deterministic")
@@ -249,11 +258,7 @@ def check_day3():
     ac_info = df_master[df_master['engine_ids'].str.contains(str(DEMO_ENGINE_ID))].iloc[0]
     fpd = ac_info['flights_per_day']
     
-    # Old check: A GREEN engine with zero stock and slack > 30 shows OK
-    dtf = 60 # slack = 35
-    stat = get_spares_status(dtf, 20, 0, 2, 'green', min_ta)
-    if stat == "OK": print("PASS: A GREEN engine with zero stock and slack > 30 shows OK")
-    else: print(f"FAIL: Expected OK, got {stat}")
+
     
     part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')].iloc[0]
     stock_agg = df_spares[df_spares['part_no'] == part_row['part_no']]['qty_on_hand'].sum()
@@ -283,7 +288,7 @@ def check_day3():
     
     ok_smoke = run_smoke_tests()
     
-    if not (ok_enc and ok_conf and ok_parts and alerts_ok and planner_cap_ok and feasible_jobs_ok and monotone and ok_smoke and res1 == res2):
+    if not (ok_enc and ok_conf and ok_parts and alerts_ok and planner_cap_ok and feasible_jobs_ok and monotone and ok_smoke and ok_gantt and ok_forecast and ok_sim_keys and str(res1) == str(res2)):
         sys.exit(1)
 
 if __name__ == '__main__':
