@@ -1,0 +1,9 @@
+aircraft_id,component,workshop_id,capacity_slot,lane_id,slot_start,slot_end,missions_affected_count,mission_cost,mission_details,flag,recommended_action,predicted_failure
+AF-1002,engine_1,WS-1,1,WS-1 (Slot 1),2026-11-10,2026-11-13,0,0,[],PART_ARRIVES_AFTER_FAILURE,Expedite part or plan to ground aircraft.,2026-10-09
+AF-1003,engine_1,WS-1,1,WS-1 (Slot 1),2026-11-29,2026-12-02,outside schedule horizon,0,[],PART_ARRIVES_AFTER_FAILURE,Expedite part or plan to ground aircraft.,2026-10-11
+AF-1004,engine_1,WS-1,2,WS-1 (Slot 2),2026-11-28,2026-12-01,0,0,[],REPAIR_ENDS_AFTER_FAILURE,Cannibalise part or accept downtime.,2026-10-26
+AF-1009,engine_1,WS-1,1,WS-1 (Slot 1),2026-10-02,2026-10-05,0,0,[],,,2026-11-05
+AF-1008,engine_1,WS-1,1,WS-1 (Slot 1),2026-10-28,2026-10-31,0,0,[],,,2026-11-13
+AF-1005,engine_1,WS-1,1,WS-1 (Slot 1),2026-11-02,2026-11-05,0,0,[],,,2026-11-17
+AF-1007,engine_1,WS-1,1,WS-1 (Slot 1),2026-10-16,2026-10-19,0,0,[],,,2026-11-19
+AF-1006,engine_1,WS-1,2,WS-1 (Slot 2),2026-10-02,2026-10-05,0,0,[],,,2026-12-15
