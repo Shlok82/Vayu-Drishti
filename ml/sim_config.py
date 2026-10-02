@@ -9,7 +9,7 @@ SIMULATION = {
     'days': 90, # Days to simulate
     'runs': 200, # Number of Monte Carlo iterations
     'seed': 42, # Random seed for reproducibility
-    'workshop_capacity': 2, # Workshop capacity cap
+    'workshop_capacity': 14, # Rationale: Capacity of 2 caused infinite queue loops. Now sum of capacity_slots (14). Effect: allows realistic throughput.
     'mission_cost_weights': {'low': 1, 'medium': 2, 'high': 4} # Mission weights for computing costs
 }
 

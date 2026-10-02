@@ -18,8 +18,18 @@ def get_recommendations(alerts_df, df_ws, df_sched, df_master):
     alerts_df = alerts_df.sort_values(['risk_score', 'days_to_failure'])
     
     ws_cap = df_ws.set_index('workshop_id')['capacity_slots'].to_dict()
-    # Track usage per specific capacity slot: ws_usage[ws_id][slot_index][date] = bool
     ws_usage = {ws: {s: set() for s in range(cap)} for ws, cap in ws_cap.items()}
+    
+    # Precompute missions
+    sched_dict = {}
+    for _, row in df_sched.iterrows():
+        ac = row['aircraft_id']
+        d_str = row['date']
+        if ac not in sched_dict:
+            sched_dict[ac] = {}
+        if d_str not in sched_dict[ac]:
+            sched_dict[ac][d_str] = []
+        sched_dict[ac][d_str].append({'id': row['mission_id'], 'priority': row['priority']})
     
     recs = []
     for _, alert in alerts_df.iterrows():
@@ -85,23 +95,22 @@ def get_recommendations(alerts_df, df_ws, df_sched, df_master):
                         cost = 0
                         has_high_priority = False
                         
-                        ac_sched = df_sched[df_sched['aircraft_id'] == ac]
+                        ac_dict = sched_dict.get(ac, {})
                         out_of_horizon = False
                         
                         for d in range(ta):
                             d_date = candidate_date + timedelta(days=d)
+                            d_str = d_date.strftime("%Y-%m-%d")
                             days_from_as_of = (datetime.combine(d_date, datetime.min.time()) - as_of_dt).days
                             if days_from_as_of >= 60:
                                 out_of_horizon = True
                                 break
                             
-                            day_missions = ac_sched[ac_sched['date'] == d_date.strftime("%Y-%m-%d")]
-                            for _, m in day_missions.iterrows():
-                                m_id = m['mission_id']
+                            for m in ac_dict.get(d_str, []):
                                 prio = m['priority']
                                 if prio == 'high': has_high_priority = True
                                 w = MISSION_PRIORITY_WEIGHTS.get(prio, 1)
-                                missions.append({'id': m_id, 'priority': prio, 'date': d_date.strftime("%Y-%m-%d")})
+                                missions.append({'id': m['id'], 'priority': prio, 'date': d_str})
                                 cost += w
                                 
                         # Determine flags for this candidate

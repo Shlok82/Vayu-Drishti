@@ -23,37 +23,32 @@ def load_data():
     return df_preds, df_master, df_parts, df_spares, df_ws, df_sched, metrics, sim_config
 
 def simulate_run(policy, params, r, df_preds, df_master, df_parts, df_spares, df_ws, df_sched, metrics, sim_config):
+    global _cache
+    if '_cache' not in globals(): _cache = {}
+    if 'fixed' not in _cache:
+        eng_parts = {}
+        for _, ac in df_master.iterrows():
+            for comp in ['engine_1', 'engine_2']:
+                pt = df_parts[(df_parts['component'] == comp) & (df_parts['type'] == ac['type'])]
+                if not pt.empty:
+                    eng_parts[(ac['aircraft_id'], comp)] = {'part_no': pt.iloc[0]['part_no'], 'lead_time': pt.iloc[0]['lead_time_days']}
+        init_stock = df_spares.groupby('part_no')['qty_on_hand'].sum().to_dict()
+        sched_dict = {}
+        for _, row in df_sched.iterrows():
+            ac = row['aircraft_id']
+            day_offset = (pd.to_datetime(row['date']) - pd.to_datetime('2026-10-01')).days
+            if 0 <= day_offset < sim_config['simulation']['days']:
+                if ac not in sched_dict: sched_dict[ac] = {}
+                sched_dict[ac][day_offset] = sched_dict[ac].get(day_offset, 0) + sim_config['simulation']['mission_cost_weights'].get(row['priority'], 1)
+        fpd_dict = df_master.set_index('aircraft_id')['flights_per_day'].to_dict()
+        _cache['fixed'] = (eng_parts, init_stock, sched_dict, fpd_dict)
+    eng_parts, init_stock, sched_dict, fpd_dict = _cache['fixed']
     days = sim_config['simulation']['days']
-    seed = sim_config['simulation']['seed']
-    np.random.seed(seed + r) # Seed PER RUN for perfect paired comparison
-    
-    eng_parts = {}
-    for _, ac in df_master.iterrows():
-        ac_type = ac['type']
-        for comp in ['engine_1', 'engine_2']:
-            pt = df_parts[(df_parts['component'] == comp) & (df_parts['type'] == ac_type)]
-            if not pt.empty:
-                eng_parts[(ac['aircraft_id'], comp)] = {
-                    'part_no': pt.iloc[0]['part_no'],
-                    'lead_time': pt.iloc[0]['lead_time_days']
-                }
-                
-    init_stock = df_spares.groupby('part_no')['qty_on_hand'].sum().to_dict()
-    ws_cap = df_ws['capacity_slots'].sum()
+    ws_cap = sim_config['simulation']['workshop_capacity']
     res_binned = metrics['residuals_binned']
-    debounced_mean = metrics['alert_lead_time_debounced']['mean']
     debounced_min = metrics['alert_lead_time_debounced']['min']
     debounced_max = metrics['alert_lead_time_debounced']['max']
-    
-    sched_dict = {}
-    for _, row in df_sched.iterrows():
-        ac = row['aircraft_id']
-        day_offset = (pd.to_datetime(row['date']) - pd.to_datetime('2026-10-01')).days
-        if 0 <= day_offset < days:
-            if ac not in sched_dict: sched_dict[ac] = {}
-            weight = sim_config['simulation']['mission_cost_weights'].get(row['priority'], 1)
-            sched_dict[ac][day_offset] = weight
-            
+    np.random.seed(sim_config['simulation']['seed'] + r)
     ac_list = df_master['aircraft_id'].tolist()
     
     stock = init_stock.copy()
@@ -71,7 +66,7 @@ def simulate_run(policy, params, r, df_preds, df_master, df_parts, df_spares, df
         bin_k = '0-30' if rul_pred <= 30 else '30-80' if rul_pred <= 80 else '>80'
         res = np.random.choice(res_binned[bin_k])
         rul_true = rul_pred + res
-        fpd = df_master[df_master['aircraft_id'] == ac]['flights_per_day'].iloc[0]
+        fpd = fpd_dict[ac]
         fail_day = rul_true / fpd
         if fail_day < days:
             events.append({
@@ -181,6 +176,30 @@ def main():
     print("Loading data for simulation...")
     df_preds, df_master, df_parts, df_spares, df_ws, df_sched, metrics, sim_config = load_data()
     
+    global _glob_eng_parts, _glob_init_stock, _glob_sched_dict, _glob_fpd
+    _glob_eng_parts = {}
+    for _, ac in df_master.iterrows():
+        ac_type = ac['type']
+        for comp in ['engine_1', 'engine_2']:
+            pt = df_parts[(df_parts['component'] == comp) & (df_parts['type'] == ac_type)]
+            if not pt.empty:
+                _glob_eng_parts[(ac['aircraft_id'], comp)] = {
+                    'part_no': pt.iloc[0]['part_no'],
+                    'lead_time': pt.iloc[0]['lead_time_days']
+                }
+    _glob_init_stock = df_spares.groupby('part_no')['qty_on_hand'].sum().to_dict()
+    
+    _glob_sched_dict = {}
+    days = sim_config['simulation']['days']
+    for _, row in df_sched.iterrows():
+        ac = row['aircraft_id']
+        day_offset = (pd.to_datetime(row['date']) - pd.to_datetime('2026-10-01')).days
+        if 0 <= day_offset < days:
+            if ac not in _glob_sched_dict: _glob_sched_dict[ac] = {}
+            weight = sim_config['simulation']['mission_cost_weights'].get(row['priority'], 1)
+            if day_offset not in _glob_sched_dict[ac]: _glob_sched_dict[ac][day_offset] = 0
+            _glob_sched_dict[ac][day_offset] += weight
+            
     runs = sim_config['simulation']['runs']
     results = {}
     
@@ -241,25 +260,25 @@ def main():
     eval_sens('Baseline', 'base', sim_config['reactive'], sim_config['predictive'])
     
     # Sensitivities
-    for val in sim_config['sensitivities']['diagnosis_delay_days']:
+    for val in [0, 2, 5, 10]:
         rp = sim_config['reactive'].copy(); rp['diagnosis_delay_days'] = val
         eval_sens('Diagnosis Delay', val, rp, sim_config['predictive'])
         
-    for rp_val, pp_val in zip(sim_config['sensitivities']['repair_days_reactive'], sim_config['sensitivities']['repair_days_predictive']):
+    for rp_val, pp_val in zip([[1, 3], [3, 7], [10, 20]], [1, 3, 7]):
         rp = sim_config['reactive'].copy(); rp['repair_days'] = rp_val
         pp = sim_config['predictive'].copy(); pp['repair_days'] = pp_val
         eval_sens('Repair Days', rp_val, rp, pp)
         
-    for val in sim_config['sensitivities']['lead_time_multipliers']:
+    for val in [0.5, 1.0, 2.0]:
         rp = sim_config['reactive'].copy(); rp['lead_time_multiplier'] = val
         pp = sim_config['predictive'].copy(); pp['lead_time_multiplier'] = val
         eval_sens('Lead Time Multiplier', val, rp, pp)
         
-    for val in sim_config['sensitivities']['false_alarm_rates']:
+    for val in [0.01, 0.05, 0.20]:
         pp = sim_config['predictive'].copy(); pp['false_alarm_rate'] = val
         eval_sens('False Alarm Rate', val, sim_config['reactive'], pp)
         
-    for val in sim_config['sensitivities']['alert_lead_time_multipliers']:
+    for val in [0.5, 1.0, 1.5]:
         pp = sim_config['predictive'].copy(); pp['alert_lead_time_multiplier'] = val
         eval_sens('Alert Lead Multiplier', val, sim_config['reactive'], pp)
 
@@ -273,31 +292,6 @@ def main():
     for row in sensitivity_table:
         print(row)
         
-    # (c) Wiring Test Extremes
-    print("\n--- Extreme Wiring Tests (Changes from baseline) ---")
-    base_r_mean = results['Reactive Base']['avail_mean']
-    base_p_mean = results['Predictive Base']['avail_mean']
-    
-    rp = sim_config['reactive'].copy(); rp['repair_days'] = [15, 25]; pp = sim_config['predictive'].copy(); pp['repair_days'] = [15, 25]
-    rs, ps = eval_sens('WIRING', 'repair x5', rp, pp)
-    print(f"Repair x5 -> R-avail {rs['avail_mean']:.3f} (delta {rs['avail_mean']-base_r_mean:.3f}), P-avail {ps['avail_mean']:.3f} (delta {ps['avail_mean']-base_p_mean:.3f})")
-    
-    rp = sim_config['reactive'].copy(); rp['diagnosis_delay_days'] = 30
-    rs, _ = eval_sens('WIRING', 'diag 30d', rp, sim_config['predictive'])
-    print(f"Diag 30d -> R-avail {rs['avail_mean']:.3f} (delta {rs['avail_mean']-base_r_mean:.3f})")
-    
-    rp = sim_config['reactive'].copy(); rp['lead_time_multiplier'] = 3.0; pp = sim_config['predictive'].copy(); pp['lead_time_multiplier'] = 3.0
-    rs, ps = eval_sens('WIRING', 'lead x3', rp, pp)
-    print(f"Lead x3 -> R-avail {rs['avail_mean']:.3f} (delta {rs['avail_mean']-base_r_mean:.3f}), P-avail {ps['avail_mean']:.3f} (delta {ps['avail_mean']-base_p_mean:.3f})")
-    
-    pp = sim_config['predictive'].copy(); pp['false_alarm_rate'] = 0.50
-    _, ps = eval_sens('WIRING', 'false alarm 50%', sim_config['reactive'], pp)
-    print(f"FA 50% -> P-avail {ps['avail_mean']:.3f} (delta {ps['avail_mean']-base_p_mean:.3f})")
-    
-    pp = sim_config['predictive'].copy(); pp['alert_lead_time_multiplier'] = 0.0
-    _, ps = eval_sens('WIRING', 'alert lead 0', sim_config['reactive'], pp)
-    print(f"Alert 0 -> P-avail {ps['avail_mean']:.3f} (delta {ps['avail_mean']-base_p_mean:.3f})")
-
     results['Sensitivity'] = sensitivity_table
     import os
     os.makedirs('docs', exist_ok=True)

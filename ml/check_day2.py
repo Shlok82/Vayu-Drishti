@@ -108,7 +108,7 @@ def check_day2():
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     from ml.replay import replay
     try:
-        r_full = replay(DEMO_ENGINE_ID)
+        r_full = replay(engine_for_aircraft(DEMO_AIRCRAFT_ID))
         # True causality test using truncation on 3 held-out engines, 3 cuts each
         try:
             import ml.replay as rep

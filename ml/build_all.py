@@ -15,5 +15,6 @@ if __name__ == '__main__':
     run_script('make_synthetic.py')
     run_script('make_predictions.py')
     run_script('evaluate.py')
+    run_script('precompute.py')
     run_script('simulate_policies.py')
     print("build_all completed successfully.")

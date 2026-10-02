@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from ml import config
 from ml.sim_config import load_sim_config
 
-def simulate_forecast(df_master, df_preds, recs_df, days=30):
+def simulate_forecast(df_master, df_preds, recs_df, days=30, return_details=False):
     as_of_dt = datetime.strptime(config.AS_OF, "%Y-%m-%d %H:%M").date()
     
     # Precompute per-aircraft FPD and initial states
@@ -43,7 +43,7 @@ def simulate_forecast(df_master, df_preds, recs_df, days=30):
     sim_cfg = load_sim_config()
     react_cfg = sim_cfg['reactive']
     
-    ws_cap = df_ws['capacity_slots'].sum()
+    ws_cap = sim_cfg['simulation']['workshop_capacity']
     
     part_lt = {}
     for _, r in df_parts.iterrows():
@@ -165,12 +165,18 @@ def simulate_forecast(df_master, df_preds, recs_df, days=30):
     no_action_ready = run_scenario(False)
     planned_ready = run_scenario(True)
     
-    print("--- Forecast Output ---")
-    print(f"No Action (Ready): {no_action_ready}")
-    print(f"Plan (Ready): {planned_ready}")
-    print(f"Plan (Red aircraft): {_daily_red_plan}")
-    print(f"Plan (Failed aircraft): {_daily_failed_plan}")
-    print(f"Plan (Sample Day 5): {_sample_ac_day5}")
+    if return_details:
+        return pd.DataFrame({
+            'Date': dates,
+            'No Action': no_action_ready,
+            'Plan': planned_ready
+        }), {
+            'no_action_ready': no_action_ready,
+            'planned_ready': planned_ready,
+            'daily_red_plan': _daily_red_plan,
+            'daily_failed_plan': _daily_failed_plan,
+            'sample_day_5': _sample_ac_day5
+        }
     
     return pd.DataFrame({
         'Date': dates,

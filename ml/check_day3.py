@@ -208,9 +208,23 @@ def check_day3():
     if feasible_jobs_ok: print("PASS: No feasible job ends after its predicted failure date")
     else: print("FAIL: Feasible job ends after predicted failure date")
     
-    ok_gantt = (len(recs) == len(alerts_df))
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("planner_page", "app/pages/3_Planner.py")
+    planner_page = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(planner_page)
+    build_gantt = planner_page.build_gantt
+    fig = build_gantt(recs, alerts_df)
+    bar_count = len([t for t in fig.data if type(t).__name__ == 'Bar'])
+    ok_gantt = (bar_count == len(alerts_df))
     if ok_gantt: print("PASS: Gantt bar count equals planned job count (1:1 mapping)")
     else: print("FAIL: Gantt bar count mismatch")
+
+    infeasible_jobs = recs[recs['flag'].isin(['PART_ARRIVES_AFTER_FAILURE', 'REPAIR_ENDS_AFTER_FAILURE'])]
+    # Find hatched/grey traces
+    grey_traces = [t for t in fig.data if type(t).__name__ == 'Bar' and (getattr(t.marker, 'color', None) == 'lightgrey' or getattr(t.marker, 'pattern', None) is not None)]
+    ok_infeasible = (len(grey_traces) == len(infeasible_jobs))
+    if ok_infeasible: print("PASS: Grey/hatched traces equal infeasible jobs")
+    else: print(f"FAIL: Grey/hatched traces mismatch. Expected {len(infeasible_jobs)}, got {len(grey_traces)}")
     
     # Forecast check
     print("--- Forecast Check ---")
@@ -224,7 +238,7 @@ def check_day3():
     # Sim check
     print("--- Simulation Output Check ---")
     with open('docs/sim_results.json', 'r') as f: res = json.load(f)
-    ok_sim_keys = ('Predictive Base' in res)
+    ok_sim_keys = ('Predictive Base' in res and 'Reactive Base' in res and 'Paired Difference' in res and 'Sensitivity' in res)
     if ok_sim_keys:
         print("PASS: Simulation output keys present")
     else: print("FAIL: Simulation output keys missing")
@@ -251,40 +265,79 @@ def check_day3():
     
     # Twin state check
     print("--- Twin State Check ---")
-    from ml.replay import replay
-    from ml.config import DEMO_ENGINE_ID
-    from ml.alerts import get_spares_status
-    df_rep = replay(DEMO_ENGINE_ID)
-    ac_info = df_master[df_master['engine_ids'].str.contains(str(DEMO_ENGINE_ID))].iloc[0]
+    import importlib.util
+    spec2 = importlib.util.spec_from_file_location("twin_page", "app/pages/2_Digital_Twin.py")
+    twin_page = importlib.util.module_from_spec(spec2)
+    spec2.loader.exec_module(twin_page)
+    get_twin_states = twin_page.get_twin_states
+    from ml.replay import replay, engine_for_aircraft
+    from ml.config import DEMO_AIRCRAFT_ID
+    
+    df_rep = replay(engine_for_aircraft(DEMO_AIRCRAFT_ID))
+    ac_info = df_master[df_master['aircraft_id'] == DEMO_AIRCRAFT_ID].iloc[0]
     fpd = ac_info['flights_per_day']
     
-
+    # Run debounce unit-test
+    from ml.debounce import debounce_series
+    print("Debounce Unit-Test:")
+    print(debounce_series(pd.Series(['green', 'green', 'amber', 'green', 'amber', 'amber', 'amber', 'red', 'amber', 'red', 'red', 'red']), threshold=3).tolist())
     
-    part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')].iloc[0]
-    stock_agg = df_spares[df_spares['part_no'] == part_row['part_no']]['qty_on_hand'].sum()
-    reorder_agg = df_spares[df_spares['part_no'] == part_row['part_no']]['reorder_level'].max()
-    if pd.isna(reorder_agg): reorder_agg = 0
-    lt = part_row['lead_time_days']
+    raw_status, debounced_status, raw_risk, debounced_risk = get_twin_states(df_rep, fpd, ac_info)
     
-    last_risk_score = 3
-    last_status = ""
+    print("Cycle 120-190 (Raw vs Debounced):")
+    for i, row in df_rep.iterrows():
+        c = row['cycle']
+        if 120 <= c <= 190:
+            print(f"Cycle {c}: Raw {raw_status[i]} / Debounced {debounced_status[i]}")
+            
+    check_cycles = [52, 125, 150, 186, int(df_rep['cycle'].max())]
+    for c in check_cycles:
+        idx = df_rep[df_rep['cycle'] == c].index[0]
+        rul = df_rep.iloc[idx]['predicted_rul']
+        dtf = rul / fpd
+        print(f"Cycle {c} State: RUL={rul:.1f}, Risk={debounced_risk[idx]}, DTF={dtf:.1f}, Status={debounced_status[idx]}")
+        
     transitions = []
+    last_status = debounced_status[0]
+    for i, s in enumerate(debounced_status):
+        if s != last_status:
+            transitions.append(f"Cycle {df_rep.iloc[i]['cycle']}: {last_status} -> {s}")
+            last_status = s
+            
+    print(f"Twin transitions for Demo Engine (Count: {len(transitions)}): {transitions}")
+    ok_transitions = len(transitions) <= 6
+    if ok_transitions: print("PASS: At most 6 transitions")
+    else: print("FAIL: More than 6 transitions")
     
-    risk_map = {'green': 3, 'amber': 2, 'red': 1}
-    for c in range(1, int(df_rep['cycle'].max()) + 1):
-        rul = df_rep[df_rep['cycle'] == c].iloc[0]['predicted_rul']
-        risk = 'red' if rul < RED_BELOW else ('amber' if rul <= AMBER_BELOW else 'green')
-        risk_score = risk_map[risk]
-        
-            
-        status = get_spares_status(rul / fpd, lt, stock_agg, reorder_agg, risk, min_ta)
-        if status != last_status:
-            transitions.append(f"Cycle {c}: {last_status} -> {status}")
-            last_status = status
-            
-        last_risk_score = risk_score
-        
-    print(f"Twin transitions for Demo Engine: {transitions}")
+    ok_short = True
+    for t_idx in range(len(transitions) - 1):
+        c1 = int(transitions[t_idx].split(':')[0].replace('Cycle ', ''))
+        c2 = int(transitions[t_idx+1].split(':')[0].replace('Cycle ', ''))
+        if c2 - c1 < 3: ok_short = False
+    if ok_short: print("PASS: No transition shorter than 3 cycles")
+    else: print("FAIL: Transition shorter than 3 cycles")
+    
+    # Severity never decreases
+    # status mapping
+    sev = {'OK': 0, 'WATCH': 1, 'ORDER NOW': 2, 'CANNOT ARRIVE IN TIME': 3, 'SCHEDULE NOW (IN STOCK)': 3}
+    ok_sev = True
+    for i in range(len(debounced_status) - 1):
+        if sev[debounced_status[i+1]] < sev[debounced_status[i]]:
+            ok_sev = False
+    if ok_sev: print("PASS: Severity never decreases on debounced series")
+    else: print("FAIL: Severity decreased")
+    
+    # Green zero-stock engine with slack > 30 shows OK
+    # Let's find one in alerts_df! Or just test it.
+    ok_slack = True
+    for _, r in alerts_df.iterrows():
+        if r['risk_level'] == 'green' and r['qty_on_hand'] == 0:
+            need_days = r['lead_time_days'] + df_ws['turnaround_days'].min()
+            slack = r['days_to_failure'] - need_days
+            if slack > 30 and r['status'] != 'OK':
+                ok_slack = False
+    if ok_slack: print("PASS: Green zero-stock engine with slack > 30 shows OK")
+    else: print("FAIL: Green zero-stock engine with slack > 30 does not show OK")
     
     ok_smoke = run_smoke_tests()
     

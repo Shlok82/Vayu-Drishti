@@ -78,7 +78,7 @@ def replay(engine_id, source="heldout"):
     return out_df
 
 if __name__ == "__main__":
-    df = replay(71)
+    df = replay(engine_for_aircraft(DEMO_AIRCRAFT_ID))
     print(df.tail())
 
 
