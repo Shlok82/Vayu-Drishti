@@ -7,11 +7,42 @@ import streamlit as st
 import pandas as pd
 import time
 import plotly.graph_objects as go
-from ml.replay import replay
+from ml.replay import replay, engine_for_aircraft
+from ml.debounce import debounce_series
+import os
 from ml.config import DEMO_ENGINE_ID, DEMO_AIRCRAFT_ID, RED_BELOW, AMBER_BELOW, RUL_CLIP, AS_OF, DATA_DIR, AVG_FLIGHT_HOURS_PER_CYCLE
 from datetime import datetime, timedelta
 from ml.alerts import get_spares_status
 from ml.dates import get_failure_date
+
+
+def get_twin_states(df, fpd, ac_info):
+    from ml.debounce import debounce_series
+    from ml.alerts import get_spares_status
+    from ml.config import DATA_DIR
+    import pandas as pd
+    import numpy as np
+    
+    if 'debounced_risk' not in df.columns:
+        df['debounced_risk'] = debounce_series(df['risk_level'], threshold=3).values
+        df_parts = pd.read_csv(DATA_DIR / 'parts_catalog.csv')
+        df_spares = pd.read_csv(DATA_DIR / 'spares_inventory.csv')
+        df_ws = pd.read_csv(DATA_DIR / 'workshops.csv')
+        min_turnaround = df_ws['turnaround_days'].min()
+        part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')]
+        eng_part_no = part_row.iloc[0]['part_no']
+        eng_lead = part_row.iloc[0]['lead_time_days']
+        stock_agg = df_spares[df_spares['part_no'] == eng_part_no]['qty_on_hand'].sum()
+        reorder_agg = df_spares[df_spares['part_no'] == eng_part_no]['reorder_level'].max()
+        if pd.isna(reorder_agg): reorder_agg = 0
+        statuses = []
+        for i, row in df.iterrows():
+            rul_val = row['predicted_rul']
+            dtf_val = rul_val / fpd
+            r_risk = row['debounced_risk']
+            statuses.append(get_spares_status(dtf_val, eng_lead, stock_agg, reorder_agg, r_risk, min_turnaround))
+        df['debounced_status'] = debounce_series(pd.Series(statuses), threshold=3).values
+    return df
 
 def main():
     st.title("Digital Twin Replay")
@@ -21,12 +52,13 @@ def main():
     ac_info = df_master[df_master['aircraft_id'] == DEMO_AIRCRAFT_ID].iloc[0]
     fpd = ac_info['flights_per_day']
     
-    st.info(f"**Aircraft {ac_info['aircraft_id']}** (Type: {ac_info['type']}, Flights/day: {fpd}) - engine_1 replaced by held-out engine {DEMO_ENGINE_ID} for replay.")
+    st.info(f"**Aircraft {ac_info['aircraft_id']}** (Type: {ac_info['type']}, Flights/day: {fpd}) - engine_1 replaced by held-out engine {engine_for_aircraft(DEMO_AIRCRAFT_ID)} for replay.")
     
     if 'replay_df' not in st.session_state:
-        st.session_state.replay_df = replay(DEMO_ENGINE_ID)
+        st.session_state.replay_df = replay(engine_for_aircraft(DEMO_AIRCRAFT_ID))
         
     df = st.session_state.replay_df
+    df = get_twin_states(df, fpd, ac_info)
     max_cycle = int(df['cycle'].max())
     
     # Restored Controls
@@ -64,7 +96,8 @@ def main():
     with st.sidebar.expander("What-If Analysis", expanded=False):
         extra_hours = st.number_input("Extra Flight Hours", value=0.0, step=1.0)
     extra_cycles = extra_hours / AVG_FLIGHT_HOURS_PER_CYCLE
-    sim_rul = max(0, rul - extra_cycles)
+    from ml.whatif import calculate_what_if_rul
+    sim_rul = calculate_what_if_rul(rul, extra_hours)
     sim_risk = 'red' if sim_rul < RED_BELOW else ('amber' if sim_rul <= AMBER_BELOW else 'green')
     
     st.write(f"**Simulated Clock:** {sim_now.strftime('%Y-%m-%d %H:%M')}")
@@ -86,21 +119,44 @@ def main():
     
     st.metric("Health Index (RUL-scaled)", f"{min(100, max(0, sim_rul / RUL_CLIP * 100)):.1f}/100")
     
-    df_parts = pd.read_csv(DATA_DIR / 'parts_catalog.csv')
-    df_spares = pd.read_csv(DATA_DIR / 'spares_inventory.csv')
-    df_ws = pd.read_csv(DATA_DIR / 'workshops.csv')
-    min_turnaround = df_ws['turnaround_days'].min()
+    # Debounce risk logic
+
+
+        
+    current_debounced_risk = history['debounced_risk'].iloc[-1]
+    current_debounced_status = history['debounced_status'].iloc[-1]
     
-    part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')]
-    if not part_row.empty:
+    # In what-if mode, we just re-evaluate immediately without debounce
+    if extra_hours > 0:
+        sim_risk = 'red' if sim_rul < RED_BELOW else ('amber' if sim_rul <= AMBER_BELOW else 'green')
+        df_parts = pd.read_csv(DATA_DIR / 'parts_catalog.csv')
+        df_spares = pd.read_csv(DATA_DIR / 'spares_inventory.csv')
+        df_ws = pd.read_csv(DATA_DIR / 'workshops.csv')
+        min_turnaround = df_ws['turnaround_days'].min()
+        part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')]
         eng_part_no = part_row.iloc[0]['part_no']
         eng_lead = part_row.iloc[0]['lead_time_days']
-        
+        stock_agg = df_spares[df_spares['part_no'] == eng_part_no]['qty_on_hand'].sum()
+        reorder_agg = df_spares[df_spares['part_no'] == eng_part_no]['reorder_level'].max()
+        if pd.isna(reorder_agg): reorder_agg = 0
+        status = get_spares_status(days_to_fail, eng_lead, stock_agg, reorder_agg, sim_risk, min_turnaround)
+    else:
+        sim_risk = current_debounced_risk
+        status = current_debounced_status
+        # Define for the rendering
+        df_parts = pd.read_csv(DATA_DIR / 'parts_catalog.csv')
+        df_spares = pd.read_csv(DATA_DIR / 'spares_inventory.csv')
+        df_ws = pd.read_csv(DATA_DIR / 'workshops.csv')
+        min_turnaround = df_ws['turnaround_days'].min()
+        part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')]
+        eng_part_no = part_row.iloc[0]['part_no']
+        eng_lead = part_row.iloc[0]['lead_time_days']
         stock_agg = df_spares[df_spares['part_no'] == eng_part_no]['qty_on_hand'].sum()
         reorder_agg = df_spares[df_spares['part_no'] == eng_part_no]['reorder_level'].max()
         if pd.isna(reorder_agg): reorder_agg = 0
         
-        status = get_spares_status(days_to_fail, eng_lead, stock_agg, reorder_agg, sim_risk, min_turnaround)
+    if True:
+
         
         msg = f"**Spares Alert**: Part {eng_part_no} fails in {days_to_fail:.1f} days, stock {stock_agg}, lead time {eng_lead} days, repair {min_turnaround} days. Status: **{status}**"
         
@@ -147,9 +203,13 @@ def main():
         
     if st.session_state.is_playing:
         if st.session_state.current_cycle < max_cycle:
-            time.sleep(1.0 / playback_speed)
-            st.session_state.current_cycle += 1
-            st.rerun()
+            if os.environ.get('TEST_MODE') == '1':
+                st.session_state.current_cycle += 1
+                st.session_state.is_playing = False
+            else:
+                time.sleep(1.0 / playback_speed)
+                st.session_state.current_cycle += 1
+                st.rerun()
         else:
             st.session_state.is_playing = False
 

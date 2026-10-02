@@ -11,6 +11,76 @@ from ml.config import DATA_DIR, AS_OF
 from ml.alerts import generate_alerts
 from ml.planner import get_recommendations
 
+def build_gantt(recs, alerts_df):
+    import plotly.graph_objects as go
+    from datetime import datetime, timedelta
+    from ml.config import AS_OF
+    fig = go.Figure()
+    all_lanes = sorted(recs['lane_id'].unique().tolist(), reverse=True)
+    added_fail_legend = False
+    
+    for i, row in recs.iterrows():
+        lane = row['lane_id']
+        start = row['slot_start']
+        end = row['slot_end']
+        flag = row['flag']
+        ac = row['aircraft_id']
+        fail_date = row['predicted_failure']
+        
+        risk = alerts_df[(alerts_df['aircraft_id'] == ac) & (alerts_df['component'] == row['component'])]['risk_level'].iloc[0]
+        
+        is_infeasible = flag in ['PART_ARRIVES_AFTER_FAILURE', 'REPAIR_ENDS_AFTER_FAILURE']
+        color = 'lightgrey' if is_infeasible else ('red' if risk == 'red' else 'orange')
+        line = dict(color='black', width=1) if is_infeasible else dict(width=0)
+        pattern = dict(shape='/') if is_infeasible else None
+        
+        hover_text = f"Aircraft: {ac}<br>Risk: {risk}<br>Flag: {flag if flag else 'None'}<br>Missions Affected: {row['missions_affected_count']}"
+        
+        duration_ms = (datetime.strptime(end, "%Y-%m-%d") - datetime.strptime(start, "%Y-%m-%d")).days * 86400000
+        fig.add_trace(go.Bar(
+            base=start,
+            x=[duration_ms],
+            y=[lane],
+            orientation='h',
+            marker_color=color,
+            marker_line=line,
+            marker_pattern=pattern,
+            text=f"{ac} {'(INFEASIBLE)' if is_infeasible else ''}",
+            textposition='inside',
+            textfont=dict(color='black' if is_infeasible else 'white'),
+            hoverinfo='text',
+            hovertext=hover_text,
+            showlegend=False
+        ))
+        
+        fig.add_trace(go.Scatter(
+            x=[fail_date, fail_date],
+            y=[lane, lane],
+            mode='markers',
+            marker=dict(symbol='line-ns', color='black', size=15, line=dict(width=2, color='black')),
+            name='Predicted Failure',
+            showlegend=not added_fail_legend,
+            hoverinfo='skip'
+        ))
+        added_fail_legend = True
+        
+    as_of_d = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M").strftime("%Y-%m-%d")
+    fig.add_vline(x=datetime.strptime(as_of_d, "%Y-%m-%d").timestamp() * 1000, line_width=2, line_dash="dash", line_color="black")
+    
+    latest_end = max(datetime.strptime(r['slot_end'], "%Y-%m-%d") for _, r in recs.iterrows()) if not recs.empty else datetime.strptime(as_of_d, "%Y-%m-%d")
+    fig.update_layout(
+        barmode='overlay',
+        yaxis=dict(categoryarray=all_lanes, type='category'),
+        xaxis=dict(
+            type='date',
+            range=[as_of_d, (latest_end + timedelta(days=7)).strftime("%Y-%m-%d")]
+        ),
+        margin=dict(l=0, r=0, t=30, b=0),
+        height=300 + 40 * len(all_lanes),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    )
+    return fig
+
 def main():
     st.title("Maintenance Planner")
     st.caption(f"Demo as-of date: {AS_OF} (fixed)")
@@ -61,78 +131,7 @@ def main():
     st.write("---")
     st.subheader("Schedule Gantt Chart")
     
-    # Gantt Chart Construction
-    fig = go.Figure()
-    
-    # Collect all unique lanes to order them
-    all_lanes = sorted(recs['lane_id'].unique().tolist(), reverse=True)
-    
-    added_fail_legend = False
-    
-    for i, row in recs.iterrows():
-        lane = row['lane_id']
-        start = row['slot_start']
-        end = row['slot_end']
-        flag = row['flag']
-        ac = row['aircraft_id']
-        fail_date = row['predicted_failure']
-        
-        # Risk level from alerts_df
-        risk = alerts_df[(alerts_df['aircraft_id'] == ac) & (alerts_df['component'] == row['component'])]['risk_level'].iloc[0]
-        
-        is_infeasible = flag in ['PART_ARRIVES_AFTER_FAILURE', 'REPAIR_ENDS_AFTER_FAILURE']
-        color = 'lightgrey' if is_infeasible else ('red' if risk == 'red' else 'orange')
-        line = dict(color='black', width=1) if is_infeasible else dict(width=0)
-        pattern = dict(shape='/') if is_infeasible else None
-        
-        hover_text = f"Aircraft: {ac}<br>Risk: {risk}<br>Flag: {flag if flag else 'None'}<br>Missions Affected: {row['missions_affected_count']}"
-        
-        # Draw bar
-        duration_ms = (datetime.strptime(end, "%Y-%m-%d") - datetime.strptime(start, "%Y-%m-%d")).days * 86400000
-        fig.add_trace(go.Bar(
-            base=start,
-            x=[duration_ms],
-            y=[lane],
-            orientation='h',
-            marker_color=color,
-            marker_line=line,
-            marker_pattern=pattern,
-            text=f"{ac} {'(INFEASIBLE)' if is_infeasible else ''}",
-            textposition='inside',
-            textfont=dict(color='black' if is_infeasible else 'white'),
-            hoverinfo='text',
-            hovertext=hover_text,
-            showlegend=False
-        ))
-        
-        # Draw predicted failure marker as a thin vertical line on the lane
-        fig.add_trace(go.Scatter(
-            x=[fail_date, fail_date],
-            y=[lane, lane],
-            mode='markers',
-            marker=dict(symbol='line-ns', color='black', size=15, line=dict(width=2, color='black')),
-            name='Predicted Failure',
-            showlegend=not added_fail_legend,
-            hoverinfo='skip'
-        ))
-        added_fail_legend = True
-        
-    as_of_d = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M").strftime("%Y-%m-%d")
-    fig.add_vline(x=datetime.strptime(as_of_d, "%Y-%m-%d").timestamp() * 1000, line_width=2, line_dash="dash", line_color="black")
-    
-    # X range
-    latest_end = max(datetime.strptime(r['slot_end'], "%Y-%m-%d") for _, r in recs.iterrows())
-    fig.update_layout(
-        barmode='overlay',
-        yaxis=dict(categoryarray=all_lanes, type='category'),
-        xaxis=dict(
-            type='date',
-            range=[as_of_d, (latest_end + timedelta(days=7)).strftime("%Y-%m-%d")]
-        ),
-        margin=dict(l=0, r=0, t=30, b=0),
-        height=300 + 40 * len(all_lanes),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
-    )
+    fig = build_gantt(recs, alerts_df)
     st.plotly_chart(fig, width='stretch')
     
     st.write("---")
