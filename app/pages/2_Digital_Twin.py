@@ -22,33 +22,42 @@ def get_twin_states(df, fpd, ac_info):
     from ml.config import DATA_DIR
     import pandas as pd
     import numpy as np
+    from ml.cache_layer import load_all_csvs
+    _, _, df_parts, df_spares, df_ws, _, _ = load_all_csvs()
     
-    if 'debounced_risk' not in df.columns:
-        df['debounced_risk'] = debounce_series(df['risk_level'], threshold=3).values
-        df_parts = pd.read_csv(DATA_DIR / 'parts_catalog.csv')
-        df_spares = pd.read_csv(DATA_DIR / 'spares_inventory.csv')
-        df_ws = pd.read_csv(DATA_DIR / 'workshops.csv')
-        min_turnaround = df_ws['turnaround_days'].min()
-        part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')]
-        eng_part_no = part_row.iloc[0]['part_no']
-        eng_lead = part_row.iloc[0]['lead_time_days']
-        stock_agg = df_spares[df_spares['part_no'] == eng_part_no]['qty_on_hand'].sum()
-        reorder_agg = df_spares[df_spares['part_no'] == eng_part_no]['reorder_level'].max()
-        if pd.isna(reorder_agg): reorder_agg = 0
-        statuses = []
-        for i, row in df.iterrows():
-            rul_val = row['predicted_rul']
-            dtf_val = rul_val / fpd
-            r_risk = row['debounced_risk']
-            statuses.append(get_spares_status(dtf_val, eng_lead, stock_agg, reorder_agg, r_risk, min_turnaround))
-        df['debounced_status'] = debounce_series(pd.Series(statuses), threshold=3).values
-    return df
+    raw_risk = df['risk_level'].values
+    debounced_risk = debounce_series(df['risk_level'], threshold=3).values
+    
+    min_turnaround = df_ws['turnaround_days'].min()
+    part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')]
+    eng_part_no = part_row.iloc[0]['part_no']
+    eng_lead = part_row.iloc[0]['lead_time_days']
+    stock_agg = df_spares[df_spares['part_no'] == eng_part_no]['qty_on_hand'].sum()
+    reorder_agg = df_spares[df_spares['part_no'] == eng_part_no]['reorder_level'].max()
+    if pd.isna(reorder_agg): reorder_agg = 0
+    
+    raw_status = []
+    debounced_status_input = []
+    
+    for i, row in df.iterrows():
+        rul_val = row['predicted_rul']
+        dtf_val = rul_val / fpd
+        r_risk = raw_risk[i]
+        d_risk = debounced_risk[i]
+        
+        raw_status.append(get_spares_status(dtf_val, eng_lead, stock_agg, reorder_agg, r_risk, min_turnaround))
+        debounced_status_input.append(get_spares_status(dtf_val, eng_lead, stock_agg, reorder_agg, d_risk, min_turnaround))
+        
+    debounced_status = debounce_series(pd.Series(debounced_status_input), threshold=3).values
+    
+    return raw_status, debounced_status, raw_risk, debounced_risk
 
 def main():
     st.title("Digital Twin Replay")
     st.caption(f"Demo as-of date: {AS_OF} (fixed)")
     
-    df_master = pd.read_csv(DATA_DIR / 'aircraft_master.csv')
+    from ml.cache_layer import load_all_csvs
+    _, df_master, df_parts, df_spares, df_ws, _, _ = load_all_csvs()
     ac_info = df_master[df_master['aircraft_id'] == DEMO_AIRCRAFT_ID].iloc[0]
     fpd = ac_info['flights_per_day']
     
@@ -58,7 +67,9 @@ def main():
         st.session_state.replay_df = replay(engine_for_aircraft(DEMO_AIRCRAFT_ID))
         
     df = st.session_state.replay_df
-    df = get_twin_states(df, fpd, ac_info)
+    raw_status, debounced_status, raw_risk, debounced_risk = get_twin_states(df, fpd, ac_info)
+    df['debounced_risk'] = debounced_risk
+    df['debounced_status'] = debounced_status
     max_cycle = int(df['cycle'].max())
     
     # Restored Controls
@@ -129,9 +140,7 @@ def main():
     # In what-if mode, we just re-evaluate immediately without debounce
     if extra_hours > 0:
         sim_risk = 'red' if sim_rul < RED_BELOW else ('amber' if sim_rul <= AMBER_BELOW else 'green')
-        df_parts = pd.read_csv(DATA_DIR / 'parts_catalog.csv')
-        df_spares = pd.read_csv(DATA_DIR / 'spares_inventory.csv')
-        df_ws = pd.read_csv(DATA_DIR / 'workshops.csv')
+
         min_turnaround = df_ws['turnaround_days'].min()
         part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')]
         eng_part_no = part_row.iloc[0]['part_no']
@@ -144,9 +153,7 @@ def main():
         sim_risk = current_debounced_risk
         status = current_debounced_status
         # Define for the rendering
-        df_parts = pd.read_csv(DATA_DIR / 'parts_catalog.csv')
-        df_spares = pd.read_csv(DATA_DIR / 'spares_inventory.csv')
-        df_ws = pd.read_csv(DATA_DIR / 'workshops.csv')
+
         min_turnaround = df_ws['turnaround_days'].min()
         part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')]
         eng_part_no = part_row.iloc[0]['part_no']

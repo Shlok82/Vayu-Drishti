@@ -76,7 +76,7 @@ def main():
             sens_df = pd.DataFrame(sim_res['Sensitivity'])
             sens_df['Reactive Avail'] = (sens_df['Reactive Avail'] * 100).round(1).astype(str) + '%'
             sens_df['Predictive Avail'] = (sens_df['Predictive Avail'] * 100).round(1).astype(str) + '%'
-            sens_df['Pred Wins Frac'] = (sens_df['Pred Wins Frac'] * 100).round(1).astype(str) + '%'
+            sens_df['Pred Win Rate'] = (sens_df['Pred Win Rate'] * 100).round(1).astype(str) + '%'
             st.dataframe(sens_df, hide_index=True)
             
             st.info("Predictive maintenance dominates in almost all regimes except when reactive repairs and diagnosis are incredibly fast (e.g., Repair Days = Fast), where both perform nearly equally and predictive may lose slightly due to early intervention downtime.")

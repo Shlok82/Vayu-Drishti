@@ -85,20 +85,19 @@ def main():
     st.title("Maintenance Planner")
     st.caption(f"Demo as-of date: {AS_OF} (fixed)")
     
-    df_preds = pd.read_csv(DATA_DIR / 'predictions.csv')
-    df_master = pd.read_csv(DATA_DIR / 'aircraft_master.csv')
-    df_parts = pd.read_csv(DATA_DIR / 'parts_catalog.csv')
-    df_spares = pd.read_csv(DATA_DIR / 'spares_inventory.csv')
-    df_ws = pd.read_csv(DATA_DIR / 'workshops.csv')
-    df_sched = pd.read_csv(DATA_DIR / 'flight_schedule.csv')
-    
-    alerts_df = generate_alerts(df_preds, df_master, df_parts, df_spares, df_ws)
-    
+    from ml.cache_layer import load_all_csvs, cached_generate_alerts, cached_get_recommendations
+    try:
+        df_preds, df_master, df_parts, df_spares, df_ws, df_sched, _ = load_all_csvs()
+    except Exception as e:
+        st.error(f'Data files missing: {e}')
+        return
+    alerts_df = cached_generate_alerts()
+    recs = cached_get_recommendations()
     if alerts_df.empty:
         st.success("No critical maintenance required.")
         return
         
-    recs = get_recommendations(alerts_df, df_ws, df_sched, df_master)
+    recs = cached_get_recommendations()
     if recs.empty:
         st.success("No recommendations generated.")
         return
@@ -140,6 +139,7 @@ def main():
     # Format table
     disp_df = recs[['aircraft_id', 'component', 'lane_id', 'slot_start', 'slot_end', 'missions_affected_count', 'mission_cost', 'flag', 'recommended_action']].copy()
     disp_df.columns = ['Aircraft', 'Component', 'Lane', 'Start', 'End', 'Missions Affected', 'Cost', 'Flag', 'Recommendation']
+    disp_df['Missions Affected'] = disp_df['Missions Affected'].astype(str)
     
     st.dataframe(disp_df, width='stretch', hide_index=True)
     
