@@ -1,7 +1,7 @@
 aircraft_id,type,base,flights_per_day,total_flight_hours,engine_ids
 AF-1001,Generic Fighter Trainer,Base Charlie,0.93,4537,"1,7"
-AF-1002,Generic Fighter Trainer,Base Bravo,1.09,2071,"81,87"
-AF-1003,Generic Fighter Trainer,Base Charlie,1.69,3733,"66,2"
+AF-1002,Generic Fighter Trainer,Base Bravo,1.09,2071,"81,44"
+AF-1003,Generic Fighter Trainer,Base Charlie,1.69,3733,"66,4"
 AF-1004,Generic Fighter Trainer,Base Charlie,1.31,1622,"90,63"
 AF-1005,Generic Fighter Trainer,Base Alpha,1.08,3965,"94,69"
 AF-1006,Generic Fighter Trainer,Base Charlie,1.04,4161,"97,9"

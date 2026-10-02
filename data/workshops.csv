@@ -1,5 +1,5 @@
 workshop_id,location,capacity_slots,turnaround_days,specialisation
-WS-1,Base Alpha,3,10,Engines
-WS-2,Base Bravo,2,5,Avionics
-WS-3,Base Charlie,5,15,General
-WS-4,Depot Central,4,7,Hydraulics
+WS-1,Base Alpha,3,3,Engines
+WS-2,Base Bravo,2,2,Avionics
+WS-3,Base Charlie,5,5,General
+WS-4,Depot Central,4,3,Hydraulics
