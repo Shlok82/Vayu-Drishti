@@ -10,3 +10,16 @@ __pycache__/
 docs/*.pdf
 docs/readme.txt
 data/raw_off/
+compare_hashes.py
+report.py
+tmp_*.py
+baseline.py
+hashes_*.json
+profile.txt
+wiring_out.txt
+debug_out.txt
+encoding_hits.txt
+*.bak
+cache_dir/
+old_check_day3.py
+strip_bom.py
