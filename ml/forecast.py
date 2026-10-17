@@ -25,7 +25,7 @@ def simulate_forecast(df_master, df_preds, recs_df, days=30, return_details=Fals
     planned_slots = {}
     if not recs_df.empty:
         for _, row in recs_df.iterrows():
-            if row['flag'] == "":
+            if pd.isna(row['flag']) or str(row['flag']).strip() == "":
                 ac = row['aircraft_id']
                 if ac not in planned_slots:
                     planned_slots[ac] = []

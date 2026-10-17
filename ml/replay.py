@@ -22,7 +22,7 @@ def load_resources():
         
         # Load train (which contains heldout engines)
         # Load heldout engines from demo
-        _DATA = pd.read_csv(DATA_DIR / 'demo/heldout_engines.csv')
+        _DATA = pd.read_csv(DATA_DIR / 'demo' / 'heldout_engines.csv')
 
 
 def engine_for_aircraft(aircraft_id):

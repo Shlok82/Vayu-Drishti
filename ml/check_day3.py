@@ -255,6 +255,35 @@ def check_day3():
     ok_forecast = (len(fc) == 30 and all(0 <= v <= 24 for v in fc['Plan']) and all(0 <= v <= 24 for v in fc['No Action']))
     check(ok_forecast, "Forecast has 30 values, each 0..24, both scenarios", "Forecast output invalid")
     
+    # Fresh computation verification vs disk CSVs
+    print("--- Fresh Computation vs Disk CSVs Check ---")
+    disk_recs = pd.read_csv('data/planner_recommendations.csv', keep_default_na=False)
+    disk_fc = pd.read_csv('data/forecast_30d.csv')
+    
+    s_fresh_recs = recs.sort_values(by=['aircraft_id', 'component']).reset_index(drop=True)
+    s_fresh_recs['mission_details'] = s_fresh_recs['mission_details'].astype(str)
+    s_disk_recs = disk_recs.sort_values(by=['aircraft_id', 'component']).reset_index(drop=True)
+    s_disk_recs['mission_details'] = s_disk_recs['mission_details'].astype(str)
+    
+    recs_match = True
+    try:
+        pd.testing.assert_frame_equal(s_fresh_recs, s_disk_recs, check_like=True, check_dtype=False)
+    except AssertionError:
+        recs_match = False
+    check(recs_match, "data/planner_recommendations.csv equals fresh computation", "planner_recommendations.csv mismatch with fresh computation")
+    
+    s_fresh_fc = fc.sort_values(by=['Date']).reset_index(drop=True)
+    s_fresh_fc['Date'] = s_fresh_fc['Date'].astype(str)
+    s_disk_fc = disk_fc.sort_values(by=['Date']).reset_index(drop=True)
+    s_disk_fc['Date'] = s_disk_fc['Date'].astype(str)
+    
+    fc_match = True
+    try:
+        pd.testing.assert_frame_equal(s_fresh_fc, s_disk_fc, check_like=True, check_dtype=False, rtol=1e-5, atol=1e-5)
+    except AssertionError:
+        fc_match = False
+    check(fc_match, "data/forecast_30d.csv equals fresh computation", "forecast_30d.csv mismatch with fresh computation")
+    
     # Sim check
     print("--- Simulation Output Check ---")
     with open('docs/sim_results.json', 'r') as f: res = json.load(f)

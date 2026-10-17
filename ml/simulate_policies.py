@@ -7,7 +7,6 @@ import pandas as pd
 import numpy as np
 import json
 import os
-import matplotlib.pyplot as plt
 from ml.sim_config import load_sim_config
 from ml.config import AS_OF
 
