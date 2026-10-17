@@ -70,7 +70,7 @@ def replay(engine_id, source="heldout"):
     risks = [get_risk(r) for r in preds]
     healths = [min(100.0, max(0.0, (r / RUL_CLIP) * 100.0)) for r in preds]
     
-    out_df = eng_data[['cycle'] + _METADATA['kept_sensors'] + ['true_rul']].copy()
+    out_df = eng_data[['cycle'] + _METADATA['kept_sensors'] + ['true_rul']].copy().reset_index(drop=True)
     out_df['predicted_rul'] = preds
     out_df['risk_level'] = risks
     out_df['health_score'] = healths

@@ -9,6 +9,7 @@ import json
 import os
 import matplotlib.pyplot as plt
 from ml.sim_config import load_sim_config
+from ml.config import AS_OF
 
 def load_data():
     df_preds = pd.read_csv('data/predictions.csv')
@@ -27,16 +28,13 @@ def simulate_run(policy, params, r, df_preds, df_master, df_parts, df_spares, df
     if '_cache' not in globals(): _cache = {}
     if 'fixed' not in _cache:
         eng_parts = {}
-        for _, ac in df_master.iterrows():
-            for comp in ['engine_1', 'engine_2']:
-                pt = df_parts[(df_parts['component'] == comp) & (df_parts['type'] == ac['type'])]
-                if not pt.empty:
-                    eng_parts[(ac['aircraft_id'], comp)] = {'part_no': pt.iloc[0]['part_no'], 'lead_time': pt.iloc[0]['lead_time_days']}
+        for _, pt in df_parts[df_parts['component'].isin(['engine_1', 'engine_2'])].iterrows():
+            eng_parts[(pt['aircraft_id'], pt['component'])] = {'part_no': pt['part_no'], 'lead_time': pt['lead_time_days']}
         init_stock = df_spares.groupby('part_no')['qty_on_hand'].sum().to_dict()
         sched_dict = {}
         for _, row in df_sched.iterrows():
             ac = row['aircraft_id']
-            day_offset = (pd.to_datetime(row['date']) - pd.to_datetime('2026-10-01')).days
+            day_offset = (pd.to_datetime(row['date']) - pd.to_datetime(AS_OF.split()[0])).days
             if 0 <= day_offset < sim_config['simulation']['days']:
                 if ac not in sched_dict: sched_dict[ac] = {}
                 sched_dict[ac][day_offset] = sched_dict[ac].get(day_offset, 0) + sim_config['simulation']['mission_cost_weights'].get(row['priority'], 1)
@@ -178,22 +176,18 @@ def main():
     
     global _glob_eng_parts, _glob_init_stock, _glob_sched_dict, _glob_fpd
     _glob_eng_parts = {}
-    for _, ac in df_master.iterrows():
-        ac_type = ac['type']
-        for comp in ['engine_1', 'engine_2']:
-            pt = df_parts[(df_parts['component'] == comp) & (df_parts['type'] == ac_type)]
-            if not pt.empty:
-                _glob_eng_parts[(ac['aircraft_id'], comp)] = {
-                    'part_no': pt.iloc[0]['part_no'],
-                    'lead_time': pt.iloc[0]['lead_time_days']
-                }
+    for _, pt in df_parts[df_parts['component'].isin(['engine_1', 'engine_2'])].iterrows():
+        _glob_eng_parts[(pt['aircraft_id'], pt['component'])] = {
+            'part_no': pt['part_no'],
+            'lead_time': pt['lead_time_days']
+        }
     _glob_init_stock = df_spares.groupby('part_no')['qty_on_hand'].sum().to_dict()
     
     _glob_sched_dict = {}
     days = sim_config['simulation']['days']
     for _, row in df_sched.iterrows():
         ac = row['aircraft_id']
-        day_offset = (pd.to_datetime(row['date']) - pd.to_datetime('2026-10-01')).days
+        day_offset = (pd.to_datetime(row['date']) - pd.to_datetime(AS_OF.split()[0])).days
         if 0 <= day_offset < days:
             if ac not in _glob_sched_dict: _glob_sched_dict[ac] = {}
             weight = sim_config['simulation']['mission_cost_weights'].get(row['priority'], 1)
@@ -259,26 +253,27 @@ def main():
 
     eval_sens('Baseline', 'base', sim_config['reactive'], sim_config['predictive'])
     
-    # Sensitivities
-    for val in [0, 2, 5, 10]:
+    # Sensitivities from sim_config['sensitivities']
+    sens = sim_config['sensitivities']
+    for val in sens['diagnosis_delay_days']:
         rp = sim_config['reactive'].copy(); rp['diagnosis_delay_days'] = val
         eval_sens('Diagnosis Delay', val, rp, sim_config['predictive'])
         
-    for rp_val, pp_val in zip([[1, 3], [3, 7], [10, 20]], [1, 3, 7]):
+    for rp_val, pp_val in zip(sens['repair_days_reactive'], sens['repair_days_predictive']):
         rp = sim_config['reactive'].copy(); rp['repair_days'] = rp_val
         pp = sim_config['predictive'].copy(); pp['repair_days'] = pp_val
         eval_sens('Repair Days', rp_val, rp, pp)
         
-    for val in [0.5, 1.0, 2.0]:
+    for val in sens['lead_time_multipliers']:
         rp = sim_config['reactive'].copy(); rp['lead_time_multiplier'] = val
         pp = sim_config['predictive'].copy(); pp['lead_time_multiplier'] = val
         eval_sens('Lead Time Multiplier', val, rp, pp)
         
-    for val in [0.01, 0.05, 0.20]:
+    for val in sens['false_alarm_rates']:
         pp = sim_config['predictive'].copy(); pp['false_alarm_rate'] = val
         eval_sens('False Alarm Rate', val, sim_config['reactive'], pp)
         
-    for val in [0.5, 1.0, 1.5]:
+    for val in sens['alert_lead_time_multipliers']:
         pp = sim_config['predictive'].copy(); pp['alert_lead_time_multiplier'] = val
         eval_sens('Alert Lead Multiplier', val, sim_config['reactive'], pp)
 

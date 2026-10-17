@@ -6,6 +6,7 @@ if str(_root) not in sys.path:
 import pandas as pd
 from datetime import datetime
 from ml.config import AS_OF, ORDER_MARGIN_DAYS, WATCH_MARGIN_DAYS
+from ml.repair import get_repair_days
 
 def get_spares_status(dtf, lt, stock, reorder, risk, min_turnaround):
     if stock >= 1:
@@ -48,10 +49,6 @@ def generate_alerts(df_preds, df_master, df_parts, df_spares, df_ws=None):
     
     urgency_df = urgency_df.merge(spares_info, on='part_no', how='left')
     
-    min_turnaround = 5
-    if df_ws is not None and not df_ws.empty:
-        min_turnaround = df_ws['turnaround_days'].min()
-    
     # Sort by days_to_failure ascending
     urgency_df = urgency_df.sort_values('days_to_failure')
     
@@ -66,7 +63,8 @@ def generate_alerts(df_preds, df_master, df_parts, df_spares, df_ws=None):
         stock = row.get('qty_on_hand', 0)
         reorder = row.get('reorder_level', 0)
         
-        status = get_spares_status(dtf, lt, stock, reorder, risk, min_turnaround)
+        repair_days = get_repair_days(comp, df_ws)
+        status = get_spares_status(dtf, lt, stock, reorder, risk, repair_days)
         
         reorder_text = ", below reorder level, reorder" if stock <= reorder and stock >= 1 else ""
         
@@ -81,7 +79,7 @@ def generate_alerts(df_preds, df_master, df_parts, df_spares, df_ws=None):
         else:
             action_text = "ok" + reorder_text
 
-        msg = f"Part {part_no} fails in {int(dtf)} days, stock {int(stock)}, lead time {int(lt)} days, repair {int(min_turnaround)} days: {action_text}."
+        msg = f"Part {part_no} fails in {int(dtf)} days, stock {int(stock)}, lead time {int(lt)} days, repair {int(repair_days)} days: {action_text}."
         
         alerts.append({
             'aircraft_id': ac_id,
@@ -94,10 +92,7 @@ def generate_alerts(df_preds, df_master, df_parts, df_spares, df_ws=None):
             'risk_level': risk,
             'status': status,
             'alert_message': msg,
-            'min_turnaround': min_turnaround
+            'min_turnaround': repair_days
         })
         
     return pd.DataFrame(alerts)
-
-
-

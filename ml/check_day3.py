@@ -157,8 +157,23 @@ def check_day3():
     dtfs = alerts_df['days_to_failure'].tolist()
     check(dtfs == sorted(dtfs), "Alerts sorted by days_to_failure ascending", "Alerts not sorted")
         
-    # Independent recomputation of status
-    min_ta = df_ws['turnaround_days'].min()
+    # Independent recomputation of status without importing ml.repair
+    def _calc_repair_days_independent(comp):
+        comp_lower = str(comp).lower()
+        if 'engine' in comp_lower:
+            spec = 'Engines'
+        elif 'avionic' in comp_lower:
+            spec = 'Avionics'
+        elif 'hydraul' in comp_lower or 'gear' in comp_lower or 'actuator' in comp_lower:
+            spec = 'Hydraulics'
+        else:
+            spec = 'General'
+        matched = df_ws[df_ws['specialisation'] == spec]
+        if not matched.empty:
+            return int(matched.iloc[0]['turnaround_days'])
+        gen = df_ws[df_ws['specialisation'] == 'General']
+        return int(gen.iloc[0]['turnaround_days']) if not gen.empty else 3
+
     alerts_ok = True
     for _, r in alerts_df.iterrows():
         stock = r['qty_on_hand']
@@ -166,13 +181,14 @@ def check_day3():
         dtf = r['days_to_failure']
         lt = r['lead_time_days']
         risk = r['risk_level']
+        repair_days = _calc_repair_days_independent(r['component'])
         
         if stock >= 1:
             if risk == 'red': exp = "SCHEDULE NOW (IN STOCK)"
             elif risk == 'amber' and stock <= reorder: exp = "WATCH"
             else: exp = "OK"
         else:
-            need_days = lt + min_ta
+            need_days = lt + repair_days
             slack = dtf - need_days
             if slack < 0: exp = "CANNOT ARRIVE IN TIME"
             elif slack <= ORDER_MARGIN_DAYS: exp = "ORDER NOW"
@@ -183,6 +199,12 @@ def check_day3():
             alerts_ok = False
             print(f"FAIL: Alert {r['aircraft_id']} expected {exp}, got {r['status']}")
     check(alerts_ok, "Alert statuses independently verified")
+
+    # Parity check asserting independent repair days match ml.repair.get_repair_days
+    from ml.repair import get_repair_days
+    from ml.config import COMPONENTS
+    parity_ok = all(_calc_repair_days_independent(c) == get_repair_days(c, df_ws) for c in COMPONENTS)
+    check(parity_ok, "Independent repair days match ml.repair.get_repair_days for all components")
     
     # Planner check
     print("--- Planner Constraints Check ---")
@@ -321,7 +343,8 @@ def check_day3():
     ok_slack = True
     for _, r in alerts_df.iterrows():
         if r['risk_level'] == 'green' and r['qty_on_hand'] == 0:
-            need_days = r['lead_time_days'] + df_ws['turnaround_days'].min()
+            repair_days = _calc_repair_days_independent(r['component'])
+            need_days = r['lead_time_days'] + repair_days
             slack = r['days_to_failure'] - need_days
             if slack > 30 and r['status'] != 'OK':
                 ok_slack = False

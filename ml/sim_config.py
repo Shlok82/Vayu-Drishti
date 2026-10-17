@@ -29,12 +29,26 @@ WEAKER_MODEL = {
     'alert_lead_time_multiplier': 0.5 # Case where model alert time is halved
 }
 
+SENSITIVITIES = {
+    # Diagnosis delay range: evaluates sensitivity to field diagnosis lag from 0 (instant digital telemetry) to 10 days
+    'diagnosis_delay_days': [0, 2, 5, 10],
+    # Reactive repair day ranges: evaluates unscheduled repair time from fast [1, 3] to nominal [3, 7] and delayed [10, 20] days
+    'repair_days_reactive': [[1, 3], [3, 7], [10, 20]],
+    # Predictive repair days: paired with reactive ranges; nominal set to 2 matching baseline PREDICTIVE['repair_days']
+    'repair_days_predictive': [1, 2, 7],
+    # Part lead time multiplier: evaluates supply chain variation from expedited (0.5x) to delayed (2.0x)
+    'lead_time_multipliers': [0.5, 1.0, 2.0],
+    # False alarm rate: evaluates model precision impact from 1% (clean predictions) to 20% (frequent false alarms)
+    'false_alarm_rates': [0.01, 0.05, 0.20],
+    # Alert lead time multiplier: evaluates model warning horizon from compressed (0.5x) to extended (1.5x)
+    'alert_lead_time_multipliers': [0.5, 1.0, 1.5]
+}
+
 def load_sim_config():
     return {
         'simulation': SIMULATION,
         'reactive': REACTIVE,
         'predictive': PREDICTIVE,
-        'weaker_model': WEAKER_MODEL
+        'weaker_model': WEAKER_MODEL,
+        'sensitivities': SENSITIVITIES
     }
-
-

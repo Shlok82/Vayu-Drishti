@@ -10,7 +10,7 @@ import os
 import random
 from datetime import datetime, timedelta
 
-from ml.config import SEED, FLEET_SIZE, RED_BELOW, AMBER_BELOW, AS_OF, COMPONENTS, DEMO_AIRCRAFT_ID
+from ml.config import SEED, FLEET_SIZE, RED_BELOW, AMBER_BELOW, AS_OF, COMPONENTS, DEMO_AIRCRAFT_ID, DEMO_ENGINE_ID
 
 def main():
     print("Loading model and metadata...")
@@ -46,15 +46,26 @@ def main():
     np.random.seed(SEED)
     random.seed(SEED)
     
-    g_sel = np.random.choice(green_engines, size=32, replace=False).tolist()
-    green_engine_pairs = [(g_sel[i], g_sel[i+1]) for i in range(0, 32, 2)]
+    # Ensure DEMO_AIRCRAFT_ID ('AF-1001') has DEMO_ENGINE_ID (71) as eng1
+    remaining_greens = [e for e in green_engines if e != DEMO_ENGINE_ID]
+    g_partner = np.random.choice(remaining_greens, size=1, replace=False)[0]
+    remaining_greens.remove(g_partner)
+    
+    g_sel = np.random.choice(remaining_greens, size=30, replace=False).tolist()
+    demo_green_pair = (DEMO_ENGINE_ID, g_partner)
+    other_green_pairs = [(g_sel[i], g_sel[i+1]) for i in range(0, 30, 2)]
+    green_engine_pairs = [demo_green_pair] + other_green_pairs
+    
+    used_greens = set([DEMO_ENGINE_ID, g_partner] + g_sel)
+    avail_greens = sorted(list(set(green_engines) - used_greens))
     
     a_sel = np.random.choice(amber_engines, size=6, replace=False).tolist()
-    g2_sel = np.random.choice(sorted(list(set(green_engines) - set(g_sel))), size=6, replace=False).tolist()
+    g2_sel = np.random.choice(avail_greens, size=6, replace=False).tolist()
     amber_engine_pairs = [(a_sel[i], g2_sel[i]) for i in range(6)]
     
+    avail_greens2 = sorted(list(set(avail_greens) - set(g2_sel)))
     r_sel = np.random.choice(red_engines, size=2, replace=False).tolist()
-    g3_sel = np.random.choice(sorted(list(set(green_engines) - set(g_sel) - set(g2_sel))), size=2, replace=False).tolist()
+    g3_sel = np.random.choice(avail_greens2, size=2, replace=False).tolist()
     red_engine_pairs = [(r_sel[i], g3_sel[i]) for i in range(2)]
     
     greens = green_engine_pairs

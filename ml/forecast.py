@@ -55,7 +55,7 @@ def simulate_forecast(df_master, df_preds, recs_df, days=30, return_details=Fals
         stock = df_spares[df_spares['part_no'] == pno]['qty_on_hand'].sum()
         part_stock[(r['aircraft_id'], r['component'])] = stock
         
-    ws_ta = df_ws['turnaround_days'].mean()
+    from ml.repair import get_repair_days
     
     # Global diagnostic data to expose for printing
     _daily_red_plan = []
@@ -130,7 +130,7 @@ def simulate_forecast(df_master, df_preds, recs_df, days=30, return_details=Fals
                         while ws_usage.get(start_repair, 0) >= ws_cap:
                             start_repair += timedelta(days=1)
                             
-                        repair_days = int(ws_ta)
+                        repair_days = get_repair_days(comp, df_ws)
                         for dr in range(repair_days):
                             ws_usage[start_repair + timedelta(days=dr)] = ws_usage.get(start_repair + timedelta(days=dr), 0) + 1
                             

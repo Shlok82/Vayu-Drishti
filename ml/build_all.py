@@ -13,6 +13,7 @@ def run_script(name):
 
 if __name__ == '__main__':
     run_script('make_synthetic.py')
+    run_script('export_demo_data.py')
     run_script('make_predictions.py')
     run_script('evaluate.py')
     run_script('precompute.py')

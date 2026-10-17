@@ -12,6 +12,7 @@ def check_day1():
     print("--- Running Day 1 self-checks ---")
     passed = 0
     failed = 0
+    skipped = 0
 
     def check(condition, pass_msg, fail_msg=None):
         nonlocal passed, failed
@@ -49,22 +50,22 @@ def check_day1():
         check(len(train) == 20631, "train_FD001 has 20631 rows", f"train_FD001 has {len(train)} rows")
         check(train.shape[1] == 26, "train_FD001 has 26 columns", f"train_FD001 has {train.shape[1]} columns")
     else:
-        passed += 1
-        print("PASS: data/raw/train_FD001.txt check loosened for deployment test")
+        skipped += 1
+        print("SKIP: data/raw/train_FD001.txt not present (data/raw not committed)")
         
     if os.path.exists('data/raw/test_FD001.txt'):
         test = pd.read_csv('data/raw/test_FD001.txt', sep=r'\s+', header=None)
         check(len(test) == 13096, "test_FD001 has 13096 rows", f"test_FD001 has {len(test)} rows")
     else:
-        passed += 1
-        print("PASS: data/raw/test_FD001.txt check loosened for deployment test")
+        skipped += 1
+        print("SKIP: data/raw/test_FD001.txt not present (data/raw not committed)")
         
     if os.path.exists('data/raw/RUL_FD001.txt'):
         rul = pd.read_csv('data/raw/RUL_FD001.txt', sep=r'\s+', header=None)
         check(len(rul) == 100, "RUL_FD001 has 100 rows", f"RUL_FD001 has {len(rul)} rows")
     else:
-        passed += 1
-        print("PASS: data/raw/RUL_FD001.txt check loosened for deployment test")
+        skipped += 1
+        print("SKIP: data/raw/RUL_FD001.txt not present (data/raw not committed)")
     
     # 3. Model files load
     import joblib
@@ -153,7 +154,7 @@ def check_day1():
     mix = Counter(ac_risks)
     print(f"Fleet mix (aircraft): Green={mix.get('green', 0)}, Amber={mix.get('amber', 0)}, Red={mix.get('red', 0)}")
     
-    print(f"{passed} passed, {failed} failed")
+    print(f"{passed} passed, {failed} failed, {skipped} skipped")
     if failed > 0:
         sys.exit(1)
     else:
