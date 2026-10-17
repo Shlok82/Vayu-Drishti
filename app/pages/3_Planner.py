@@ -46,8 +46,8 @@ def build_gantt(recs, alerts_df):
             marker_line=line,
             marker_pattern=pattern,
             text=f"{ac} {'(INFEASIBLE)' if is_infeasible else ''}",
-            textposition='inside',
-            textfont=dict(color='black' if is_infeasible else 'white'),
+            textposition='outside' if is_infeasible else 'inside',
+            textfont=dict(color='#DC2626' if is_infeasible else 'white'),
             hoverinfo='text',
             hovertext=hover_text,
             showlegend=False
@@ -57,7 +57,7 @@ def build_gantt(recs, alerts_df):
             x=[fail_date, fail_date],
             y=[lane, lane],
             mode='markers',
-            marker=dict(symbol='line-ns', color='black', size=15, line=dict(width=2, color='black')),
+            marker=dict(symbol='line-ns', color='#EF4444', size=28, line=dict(width=3, color='#B91C1C')),
             name='Predicted Failure',
             showlegend=not added_fail_legend,
             hoverinfo='skip'

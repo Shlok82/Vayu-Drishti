@@ -68,7 +68,7 @@ def main():
                 fig.add_trace(go.Scatter(x=days, y=sim_res[policy]['daily_mean'], mode='lines', name=policy, line=dict(color=color, dash=dash)))
                 
         fig.update_layout(title="Fleet Readiness Over 90 Days", xaxis_title="Day", yaxis_title="Ready Aircraft", yaxis=dict(range=[0, 24]), margin=dict(l=0, r=0, t=30, b=0))
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, width="stretch")
         
         # Full Sensitivity Table
         if 'Sensitivity' in sim_res:

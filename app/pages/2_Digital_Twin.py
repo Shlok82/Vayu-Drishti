@@ -17,6 +17,7 @@ from ml.dates import get_failure_date
 
 
 def get_twin_states(df, fpd, ac_info):
+    df = df.reset_index(drop=True)
     from ml.debounce import debounce_series
     from ml.alerts import get_spares_status
     from ml.config import DATA_DIR
@@ -28,7 +29,8 @@ def get_twin_states(df, fpd, ac_info):
     raw_risk = df['risk_level'].values
     debounced_risk = debounce_series(df['risk_level'], threshold=3).values
     
-    min_turnaround = df_ws['turnaround_days'].min()
+    from ml.repair import get_repair_days
+    repair_days = get_repair_days('engine_1', df_ws)
     part_row = df_parts[(df_parts['aircraft_id'] == ac_info['aircraft_id']) & (df_parts['component'] == 'engine_1')]
     eng_part_no = part_row.iloc[0]['part_no']
     eng_lead = part_row.iloc[0]['lead_time_days']
@@ -45,8 +47,8 @@ def get_twin_states(df, fpd, ac_info):
         r_risk = raw_risk[i]
         d_risk = debounced_risk[i]
         
-        raw_status.append(get_spares_status(dtf_val, eng_lead, stock_agg, reorder_agg, r_risk, min_turnaround))
-        debounced_status_input.append(get_spares_status(dtf_val, eng_lead, stock_agg, reorder_agg, d_risk, min_turnaround))
+        raw_status.append(get_spares_status(dtf_val, eng_lead, stock_agg, reorder_agg, r_risk, repair_days))
+        debounced_status_input.append(get_spares_status(dtf_val, eng_lead, stock_agg, reorder_agg, d_risk, repair_days))
         
     debounced_status = debounce_series(pd.Series(debounced_status_input), threshold=3).values
     
@@ -54,14 +56,14 @@ def get_twin_states(df, fpd, ac_info):
 
 def main():
     st.title("Digital Twin Replay")
-    st.caption(f"Demo as-of date: {AS_OF} (fixed)")
+    st.caption(f"Demo as-of date: {AS_OF} (fixed) | Replaying held-out engine {DEMO_ENGINE_ID} on demo aircraft {DEMO_AIRCRAFT_ID}")
     
     from ml.cache_layer import load_all_csvs
     _, df_master, df_parts, df_spares, df_ws, _, _ = load_all_csvs()
     ac_info = df_master[df_master['aircraft_id'] == DEMO_AIRCRAFT_ID].iloc[0]
     fpd = ac_info['flights_per_day']
     
-    st.info(f"**Aircraft {ac_info['aircraft_id']}** (Type: {ac_info['type']}, Flights/day: {fpd}) - engine_1 replaced by held-out engine {engine_for_aircraft(DEMO_AIRCRAFT_ID)} for replay.")
+    st.info(f"**Aircraft {ac_info['aircraft_id']}** (Type: {ac_info['type']}, Flights/day: {fpd}) - engine_1 replayed using held-out engine {DEMO_ENGINE_ID}.")
     
     if 'replay_df' not in st.session_state:
         st.session_state.replay_df = replay(engine_for_aircraft(DEMO_AIRCRAFT_ID))
