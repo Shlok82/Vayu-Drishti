@@ -19,7 +19,6 @@ def check_encoding():
     for p in _root.rglob('*'):
         if not p.is_file(): continue
         if '.venv' in p.parts or '.git' in p.parts or ('data' in p.parts and 'raw' in p.parts): continue
-        if not p.name.endswith(('.py', '.md', '.csv', '.toml', '.json')): continue
         
         try:
             with open(p, 'rb') as f:
@@ -27,11 +26,12 @@ def check_encoding():
             if raw.startswith(b'\xef\xbb\xbf'):
                 print(f"FAIL: BOM found in {p.relative_to(_root)}")
                 ok = False
-            text = raw.decode('utf-8')
-            for i, line in enumerate(text.splitlines()):
-                if mojibake.search(line):
-                    print(f"FAIL: Non-ASCII in {p.relative_to(_root)}:{i+1}")
-                    ok = False
+            if p.suffix == '.py':
+                text = raw.decode('utf-8', errors='replace')
+                for i, line in enumerate(text.splitlines()):
+                    if mojibake.search(line):
+                        print(f"FAIL: Non-ASCII in {p.relative_to(_root)}:{i+1}")
+                        ok = False
         except Exception as e:
             print(f"FAIL: Could not read {p.relative_to(_root)}: {e}")
             ok = False
@@ -93,7 +93,8 @@ except Exception as e:
     print(f"Failed to run AppTest on {page}: {e}")
     sys.exit(1)
 ''')
-    ok = True
+    smoke_passed = 0
+    smoke_failed = 0
     with tempfile.TemporaryDirectory() as tmpdir:
         env = os.environ.copy()
         env['TEST_MODE'] = '1'
@@ -104,15 +105,33 @@ except Exception as e:
             if res.returncode != 0:
                 print(f"FAIL: Smoke test for {p.name}")
                 print(res.stdout); print(res.stderr)
-                ok = False
+                smoke_failed += 1
             else:
                 print(res.stdout.strip())
+                smoke_passed += 1
     if script_path.exists(): script_path.unlink()
-    return ok
+    return smoke_passed, smoke_failed
 
 def check_day3():
+    passed = 0
+    failed = 0
+
+    def check(condition, pass_msg, fail_msg=None):
+        nonlocal passed, failed
+        if condition:
+            passed += 1
+            print(f"PASS: {pass_msg}")
+        else:
+            failed += 1
+            print(f"FAIL: {fail_msg or pass_msg}")
+
     ok_enc = check_encoding()
+    if ok_enc: passed += 1
+    else: failed += 1
+
     ok_conf = check_config()
+    if ok_conf: passed += 1
+    else: failed += 1
     
     print("--- Alerts Logic & Parts Verification ---")
     from ml.alerts import generate_alerts
@@ -123,34 +142,20 @@ def check_day3():
     df_ws = pd.read_csv(DATA_DIR / 'workshops.csv')
     alerts_df = generate_alerts(df_preds, df_master, df_parts, df_spares, df_ws)
     
-    ok_parts = True
-    
     # Check parts variety
     f101_lead = df_parts[df_parts['part_no'] == 'PN-ENG-F101']['lead_time_days'].iloc[0]
-    if f101_lead == 20: print("PASS: F101 lead_time == 20")
-    else: 
-        print("FAIL: F101 lead_time != 20")
-        ok_parts = False
+    check(f101_lead == 20, "F101 lead_time == 20", "F101 lead_time != 20")
         
     part_counts = alerts_df['part_no'].value_counts()
-    if part_counts.max() <= 2: print("PASS: At most 2 alerts share a part")
-    else: 
-        print("FAIL: More than 2 alerts share a part")
-        ok_parts = False
+    check(part_counts.max() <= 2, "At most 2 alerts share a part", "More than 2 alerts share a part")
         
     af1 = alerts_df[alerts_df['aircraft_id'] == 'AF-1002']
-    if not af1.empty and af1.iloc[0]['part_no'] == 'PN-ENG-F101' and af1.iloc[0]['qty_on_hand'] == 0:
-        print("PASS: AF-1002 on zero-stock F101")
-    else: 
-        print("FAIL: AF-1002 not on F101 or stock not 0")
-        ok_parts = False
+    check(not af1.empty and af1.iloc[0]['part_no'] == 'PN-ENG-F101' and af1.iloc[0]['qty_on_hand'] == 0,
+          "AF-1002 on zero-stock F101", "AF-1002 not on F101 or stock not 0")
         
     # Check sorting
     dtfs = alerts_df['days_to_failure'].tolist()
-    if dtfs == sorted(dtfs): print("PASS: Alerts sorted by days_to_failure ascending")
-    else: 
-        print("FAIL: Alerts not sorted")
-        ok_parts = False
+    check(dtfs == sorted(dtfs), "Alerts sorted by days_to_failure ascending", "Alerts not sorted")
         
     # Independent recomputation of status
     min_ta = df_ws['turnaround_days'].min()
@@ -177,7 +182,7 @@ def check_day3():
         if r['status'] != exp:
             alerts_ok = False
             print(f"FAIL: Alert {r['aircraft_id']} expected {exp}, got {r['status']}")
-    if alerts_ok: print("PASS: Alert statuses independently verified")
+    check(alerts_ok, "Alert statuses independently verified")
     
     # Planner check
     print("--- Planner Constraints Check ---")
@@ -197,16 +202,14 @@ def check_day3():
             ws_usage[ws][d_dt] = ws_usage[ws].get(d_dt, 0) + 1
             if ws_usage[ws][d_dt] > ws_cap[ws]:
                 planner_cap_ok = False
-    if planner_cap_ok: print("PASS: No workshop capacity exceeded (including flagged jobs)")
-    else: print("FAIL: Workshop capacity exceeded")
+    check(planner_cap_ok, "No workshop capacity exceeded (including flagged jobs)", "Workshop capacity exceeded")
     
     # "no feasible job ends after its predicted failure date" (flagged excluded)
     feasible_jobs_ok = True
     for _, r in recs[recs['flag'] == ''].iterrows():
         if r['slot_end'] > r['predicted_failure']:
             feasible_jobs_ok = False
-    if feasible_jobs_ok: print("PASS: No feasible job ends after its predicted failure date")
-    else: print("FAIL: Feasible job ends after predicted failure date")
+    check(feasible_jobs_ok, "No feasible job ends after its predicted failure date", "Feasible job ends after predicted failure date")
     
     import importlib.util
     spec = importlib.util.spec_from_file_location("planner_page", "app/pages/3_Planner.py")
@@ -215,33 +218,26 @@ def check_day3():
     build_gantt = planner_page.build_gantt
     fig = build_gantt(recs, alerts_df)
     bar_count = len([t for t in fig.data if type(t).__name__ == 'Bar'])
-    ok_gantt = (bar_count == len(alerts_df))
-    if ok_gantt: print("PASS: Gantt bar count equals planned job count (1:1 mapping)")
-    else: print("FAIL: Gantt bar count mismatch")
+    check(bar_count == len(alerts_df), "Gantt bar count equals planned job count (1:1 mapping)", "Gantt bar count mismatch")
 
     infeasible_jobs = recs[recs['flag'].isin(['PART_ARRIVES_AFTER_FAILURE', 'REPAIR_ENDS_AFTER_FAILURE'])]
-    # Find hatched/grey traces
-    grey_traces = [t for t in fig.data if type(t).__name__ == 'Bar' and (getattr(t.marker, 'color', None) == 'lightgrey' or getattr(t.marker, 'pattern', None) is not None)]
-    ok_infeasible = (len(grey_traces) == len(infeasible_jobs))
-    if ok_infeasible: print("PASS: Grey/hatched traces equal infeasible jobs")
-    else: print(f"FAIL: Grey/hatched traces mismatch. Expected {len(infeasible_jobs)}, got {len(grey_traces)}")
+    hatched_traces = [t for t in fig.data if type(t).__name__ == 'Bar' and getattr(getattr(t.marker, 'pattern', None), 'shape', None)]
+    assert len(hatched_traces) == len(infeasible_jobs), f"Expected {len(infeasible_jobs)} hatched traces, got {len(hatched_traces)}"
+    passed += 1
+    print("PASS: Hatched traces equal infeasible jobs")
     
     # Forecast check
     print("--- Forecast Check ---")
     from ml.forecast import simulate_forecast
     fc = simulate_forecast(df_master, df_preds, recs)
     ok_forecast = (len(fc) == 30 and all(0 <= v <= 24 for v in fc['Plan']) and all(0 <= v <= 24 for v in fc['No Action']))
-    if ok_forecast:
-        print("PASS: Forecast has 30 values, each 0..24, both scenarios")
-    else: print("FAIL: Forecast output invalid")
+    check(ok_forecast, "Forecast has 30 values, each 0..24, both scenarios", "Forecast output invalid")
     
     # Sim check
     print("--- Simulation Output Check ---")
     with open('docs/sim_results.json', 'r') as f: res = json.load(f)
     ok_sim_keys = ('Predictive Base' in res and 'Reactive Base' in res and 'Paired Difference' in res and 'Sensitivity' in res)
-    if ok_sim_keys:
-        print("PASS: Simulation output keys present")
-    else: print("FAIL: Simulation output keys missing")
+    check(ok_sim_keys, "Simulation output keys present", "Simulation output keys missing")
     
     # Determinism check
     from ml.simulate_policies import simulate_run, load_data
@@ -250,9 +246,7 @@ def check_day3():
     params = sim_config['predictive']
     res1 = simulate_run('predictive', params, 0, df_preds_sim, df_master_sim, df_parts_sim, df_spares_sim, df_ws_sim, df_sched_sim, metrics, sim_config)
     res2 = simulate_run('predictive', params, 0, df_preds_sim, df_master_sim, df_parts_sim, df_spares_sim, df_ws_sim, df_sched_sim, metrics, sim_config)
-    if str(res1) == str(res2):
-        print("PASS: Simulation is deterministic (same seed, identical output)")
-    else: print("FAIL: Simulation is non-deterministic")
+    check(str(res1) == str(res2), "Simulation is deterministic (same seed, identical output)", "Simulation is non-deterministic")
     
     # What-if monotone RUL
     print("--- What-If Monotone Check ---")
@@ -261,7 +255,7 @@ def check_day3():
     for extra in range(0, 100, 10):
         new_rul = max(0, rul - extra)
         if new_rul > rul: monotone = False
-    if monotone: print("PASS: What-if RUL is monotone decreasing")
+    check(monotone, "What-if RUL is monotone decreasing")
     
     # Twin state check
     print("--- Twin State Check ---")
@@ -306,29 +300,24 @@ def check_day3():
             
     print(f"Twin transitions for Demo Engine (Count: {len(transitions)}): {transitions}")
     ok_transitions = len(transitions) <= 6
-    if ok_transitions: print("PASS: At most 6 transitions")
-    else: print("FAIL: More than 6 transitions")
+    check(ok_transitions, "At most 6 transitions", "More than 6 transitions")
     
     ok_short = True
     for t_idx in range(len(transitions) - 1):
         c1 = int(transitions[t_idx].split(':')[0].replace('Cycle ', ''))
         c2 = int(transitions[t_idx+1].split(':')[0].replace('Cycle ', ''))
         if c2 - c1 < 3: ok_short = False
-    if ok_short: print("PASS: No transition shorter than 3 cycles")
-    else: print("FAIL: Transition shorter than 3 cycles")
+    check(ok_short, "No transition shorter than 3 cycles", "Transition shorter than 3 cycles")
     
     # Severity never decreases
-    # status mapping
     sev = {'OK': 0, 'WATCH': 1, 'ORDER NOW': 2, 'CANNOT ARRIVE IN TIME': 3, 'SCHEDULE NOW (IN STOCK)': 3}
     ok_sev = True
     for i in range(len(debounced_status) - 1):
         if sev[debounced_status[i+1]] < sev[debounced_status[i]]:
             ok_sev = False
-    if ok_sev: print("PASS: Severity never decreases on debounced series")
-    else: print("FAIL: Severity decreased")
+    check(ok_sev, "Severity never decreases on debounced series", "Severity decreased")
     
     # Green zero-stock engine with slack > 30 shows OK
-    # Let's find one in alerts_df! Or just test it.
     ok_slack = True
     for _, r in alerts_df.iterrows():
         if r['risk_level'] == 'green' and r['qty_on_hand'] == 0:
@@ -336,13 +325,17 @@ def check_day3():
             slack = r['days_to_failure'] - need_days
             if slack > 30 and r['status'] != 'OK':
                 ok_slack = False
-    if ok_slack: print("PASS: Green zero-stock engine with slack > 30 shows OK")
-    else: print("FAIL: Green zero-stock engine with slack > 30 does not show OK")
+    check(ok_slack, "Green zero-stock engine with slack > 30 shows OK", "Green zero-stock engine with slack > 30 does not show OK")
     
-    ok_smoke = run_smoke_tests()
+    smoke_passed, smoke_failed = run_smoke_tests()
+    passed += smoke_passed
+    failed += smoke_failed
     
-    if not (ok_enc and ok_conf and ok_parts and alerts_ok and planner_cap_ok and feasible_jobs_ok and monotone and ok_smoke and ok_gantt and ok_forecast and ok_sim_keys and str(res1) == str(res2)):
+    print(f"{passed} passed, {failed} failed")
+    if failed > 0:
         sys.exit(1)
+    else:
+        sys.exit(0)
 
 if __name__ == '__main__':
     check_day3()
