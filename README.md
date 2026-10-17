@@ -55,6 +55,8 @@ C-MAPSS is a public NASA *civil turbofan simulation*, not data from any real air
 - **No feature scaling:** We do not scale features because tree-based models like XGBoost are scale-invariant.
 - **Engine-ID Split:** We strictly split train/validation data by engine ID, never by row, to prevent data leakage.
 - **Synthetic Maintenance Data:** `maintenance_logs` has 6-18 months of history. Downtime for scheduled (1-4 days) and unscheduled (3-14 days). Parts catalog has 5-45 days lead time. Flight schedule generated for 60 days.
+- **Demo Aircraft & Replay:** Replays held-out NASA C-MAPSS engine unit 71 on demo aircraft `AF-1001` (Generic Fighter Trainer, Base Charlie, 0.93 flights/day).
+- **Simulation Horizon:** Monte Carlo policy simulation runs over a 90-day horizon (`SIMULATION['days'] = 90`) across 200 iterations.
 
 ## Model Performance
 - **Environment:** Python 3.13.5 | XGBoost 3.4.1
