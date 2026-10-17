@@ -16,7 +16,9 @@ def build_gantt(recs, alerts_df):
     from datetime import datetime, timedelta
     from ml.config import AS_OF
     fig = go.Figure()
-    all_lanes = sorted(recs['lane_id'].unique().tolist(), reverse=True)
+    all_aircraft = sorted(recs['aircraft_id'].unique().tolist(), reverse=True)
+    added_sched_legend = False
+    added_infeas_legend = False
     added_fail_legend = False
     
     for i, row in recs.iterrows():
@@ -34,30 +36,43 @@ def build_gantt(recs, alerts_df):
         line = dict(color='black', width=1) if is_infeasible else dict(width=0)
         pattern = dict(shape='/') if is_infeasible else None
         
-        hover_text = f"Aircraft: {ac}<br>Risk: {risk}<br>Flag: {flag if flag else 'None'}<br>Missions Affected: {row['missions_affected_count']}"
+        inf_label = ' (INFEASIBLE)' if is_infeasible else ''
+        flag_label = flag if (pd.notna(flag) and flag) else 'None'
+        hover_text = f"Aircraft: {ac}{inf_label}<br>Lane: {lane}<br>Slot: {start} to {end}<br>Predicted Failure: {fail_date}<br>Risk: {risk}<br>Flag: {flag_label}<br>Missions Affected: {row['missions_affected_count']}"
         
         duration_ms = (datetime.strptime(end, "%Y-%m-%d") - datetime.strptime(start, "%Y-%m-%d")).days * 86400000
+        
+        if is_infeasible:
+            show_bar_legend = not added_infeas_legend
+            bar_name = 'Infeasible Maintenance (Hatched)'
+            added_infeas_legend = True
+        else:
+            show_bar_legend = not added_sched_legend
+            bar_name = 'Scheduled Maintenance'
+            added_sched_legend = True
+
         fig.add_trace(go.Bar(
             base=start,
             x=[duration_ms],
-            y=[lane],
+            y=[ac],
             orientation='h',
+            name=bar_name,
             marker_color=color,
             marker_line=line,
             marker_pattern=pattern,
-            text=f"{ac} {'(INFEASIBLE)' if is_infeasible else ''}",
-            textposition='outside' if is_infeasible else 'inside',
-            textfont=dict(color='#DC2626' if is_infeasible else 'white'),
+            text=ac,
+            textposition='inside',
+            textfont=dict(color='#1E293B' if is_infeasible else 'white'),
             hoverinfo='text',
             hovertext=hover_text,
-            showlegend=False
+            showlegend=show_bar_legend
         ))
         
         fig.add_trace(go.Scatter(
             x=[fail_date, fail_date],
-            y=[lane, lane],
+            y=[ac, ac],
             mode='markers',
-            marker=dict(symbol='line-ns', color='#EF4444', size=28, line=dict(width=3, color='#B91C1C')),
+            marker=dict(symbol='line-ns', color='#DC2626', size=28, line=dict(width=3, color='#991C1B')),
             name='Predicted Failure',
             showlegend=not added_fail_legend,
             hoverinfo='skip'
@@ -70,13 +85,13 @@ def build_gantt(recs, alerts_df):
     latest_end = max(datetime.strptime(r['slot_end'], "%Y-%m-%d") for _, r in recs.iterrows()) if not recs.empty else datetime.strptime(as_of_d, "%Y-%m-%d")
     fig.update_layout(
         barmode='overlay',
-        yaxis=dict(categoryarray=all_lanes, type='category'),
+        yaxis=dict(categoryarray=all_aircraft, type='category', title='Aircraft'),
         xaxis=dict(
             type='date',
             range=[as_of_d, (latest_end + timedelta(days=7)).strftime("%Y-%m-%d")]
         ),
         margin=dict(l=0, r=0, t=30, b=0),
-        height=300 + 40 * len(all_lanes),
+        height=300 + 40 * len(all_aircraft),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
     )
     return fig

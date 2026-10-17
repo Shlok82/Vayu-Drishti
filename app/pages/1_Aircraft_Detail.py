@@ -91,6 +91,7 @@ def main():
                 st.write(f"**Engine {i+1} (ID: {eng_id})**")
                 # Plot representative sensors as z-scores vs first 10 cycles
                 fig = go.Figure()
+                sensor_colors = {'s2': '#2563EB', 's11': '#059669', 's14': '#DC2626'}
                 for sensor in ['s2', 's11', 's14']:
                     baseline = eng_data[sensor].iloc[:10].mean()
                     std = eng_data[sensor].iloc[:10].std()
@@ -100,7 +101,13 @@ def main():
                         y_norm = (eng_data[sensor] - baseline) / std
                     else:
                         y_norm = eng_data[sensor] - baseline
-                    fig.add_trace(go.Scatter(x=eng_data['cycle'], y=y_norm, mode='lines', name=sensor))
+                    fig.add_trace(go.Scatter(
+                        x=eng_data['cycle'],
+                        y=y_norm,
+                        mode='lines',
+                        name=sensor,
+                        line=dict(color=sensor_colors.get(sensor, '#2563EB'), width=2)
+                    ))
                 fig.update_layout(height=300, margin=dict(l=0, r=0, t=30, b=0), xaxis_title="Cycle", yaxis_title="Z-Score Deviation (vs first 10 cycles)")
                 st.plotly_chart(fig, width="stretch")
                 
@@ -152,9 +159,9 @@ def main():
     with st.expander("What-If Analysis (Extra Flight Hours)"):
         from ml.config import AVG_FLIGHT_HOURS_PER_CYCLE, AMBER_BELOW, RED_BELOW
         extra_hours = st.number_input("Add flight hours", value=50)
-        extra_cycles = int(extra_hours / AVG_FLIGHT_HOURS_PER_CYCLE)
+        extra_cycles = extra_hours / AVG_FLIGHT_HOURS_PER_CYCLE
         
-        st.write(f"**Adding +{extra_hours} hours (+{extra_cycles} cycles)** (Linear approximation)")
+        st.write(f"**Adding +{extra_hours} hours (+{extra_cycles:.1f} cycles)** (Linear approximation)")
         
         from ml.whatif import calculate_what_if_rul
         from ml.dates import get_failure_date
