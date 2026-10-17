@@ -201,6 +201,9 @@ def main():
             downtime = random.randint(1, 4) if kind == 'scheduled' else random.randint(3, 14)
             action = random.choice(['Routine Inspection', 'Component Replacement', 'Calibration', 'Software Update'])
             comp = random.choice(COMPONENTS)
+            # Deterministically clamp so date + downtime_days <= as_of_dt (no new random draws)
+            if log_date + timedelta(days=downtime) > as_of_dt:
+                log_date = as_of_dt - timedelta(days=downtime)
             logs.append({
                 'log_id': f"LOG-{log_id:04d}",
                 'aircraft_id': ac_id,

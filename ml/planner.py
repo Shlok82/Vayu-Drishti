@@ -13,9 +13,8 @@ def get_recommendations(alerts_df, df_ws, df_sched, df_master):
         
     as_of_dt = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M")
     
-    # Sort alerts by priority: red first, then days_to_failure
-    alerts_df['risk_score'] = alerts_df['risk_level'].map({'red': 0, 'amber': 1, 'green': 2})
-    alerts_df = alerts_df.sort_values(['risk_score', 'days_to_failure'])
+    # Sort alerts by days_to_failure
+    alerts_df = alerts_df.sort_values('days_to_failure')
     
     ws_cap = df_ws.set_index('workshop_id')['capacity_slots'].to_dict()
     ws_usage = {ws: {s: set() for s in range(cap)} for ws, cap in ws_cap.items()}
@@ -38,8 +37,7 @@ def get_recommendations(alerts_df, df_ws, df_sched, df_master):
         dtf = alert['days_to_failure']
         fail_date = as_of_dt + timedelta(days=dtf)
         part_lt = alert['lead_time_days'] if alert['qty_on_hand'] <= 0 else 0
-        
-        part_arrival = as_of_dt + timedelta(days=part_lt)
+        part_arrival = as_of_dt + timedelta(days=int(part_lt))
         
         best_ws = None
         best_slot_start = None
@@ -51,96 +49,75 @@ def get_recommendations(alerts_df, df_ws, df_sched, df_master):
         best_action = ""
         best_out_of_horizon = False
         
-        # Consider all workshops
-        for _, ws in df_ws.iterrows():
-            ws_id = ws['workshop_id']
-            ws_spec = ws['specialisation']
-            
-            # Check specialisation
-            is_valid_spec = False
-            if ws_spec == 'General':
-                is_valid_spec = True
-            elif ws_spec == 'Engines' and 'engine' in comp:
-                is_valid_spec = True
-            elif ws_spec == 'Avionics' and 'avionics' in comp:
-                is_valid_spec = True
-            elif ws_spec == 'Hydraulics' and ('hydraulic' in comp or 'actuator' in comp or 'landing' in comp):
-                is_valid_spec = True
+        # Determine specialized workshops for component
+        comp_lower = comp.lower()
+        if 'engine' in comp_lower: target_spec = 'Engines'
+        elif 'avionic' in comp_lower: target_spec = 'Avionics'
+        elif 'hydraul' in comp_lower or 'gear' in comp_lower or 'actuator' in comp_lower: target_spec = 'Hydraulics'
+        else: target_spec = 'General'
+        
+        matched_ws = df_ws[df_ws['specialisation'] == target_spec]
+        if matched_ws.empty:
+            matched_ws = df_ws[df_ws['specialisation'] == 'General']
+        
+        search_start = max(as_of_dt, part_arrival).date()
+        cand = search_start
+        while best_slot_end is None or cand < best_slot_end.date():
+            for _, ws in matched_ws.iterrows():
+                ws_id = ws['workshop_id']
+                ta = int(ws['turnaround_days'])
+                cap = int(ws_cap[ws_id])
+                slot_end = cand + timedelta(days=ta)
                 
-            if not is_valid_spec:
-                continue
-                
-            ta = ws['turnaround_days']
-            cap = ws_cap[ws_id]
-            
-            search_start = max(as_of_dt, part_arrival).date()
-            latest_start = fail_date.date() - timedelta(days=ta)
-            
-            # Find the best slot from search_start up to something far (e.g. search_start + 60)
-            # We want to check all candidate dates from search_start to max(latest_start, search_start + 60)
-            end_search = max(latest_start, search_start + timedelta(days=60))
-            
-            candidate_date = search_start
-            while candidate_date <= end_search:
-                # Can it fit in any slot index of this workshop?
                 for slot_idx in range(cap):
-                    can_fit = True
-                    for d in range(ta):
-                        if (candidate_date + timedelta(days=d)) in ws_usage[ws_id][slot_idx]:
-                            can_fit = False
-                            break
-                    if can_fit:
-                        # Evaluate missions affected
+                    if all((cand + timedelta(days=d)) not in ws_usage[ws_id][slot_idx] for d in range(ta)):
                         missions = []
                         cost = 0
-                        has_high_priority = False
-                        
-                        ac_dict = sched_dict.get(ac, {})
                         out_of_horizon = False
                         
+                        ac_dict = sched_dict.get(ac, {})
                         for d in range(ta):
-                            d_date = candidate_date + timedelta(days=d)
+                            d_date = cand + timedelta(days=d)
                             d_str = d_date.strftime("%Y-%m-%d")
                             days_from_as_of = (datetime.combine(d_date, datetime.min.time()) - as_of_dt).days
                             if days_from_as_of >= 60:
                                 out_of_horizon = True
                                 break
-                            
                             for m in ac_dict.get(d_str, []):
                                 prio = m['priority']
-                                if prio == 'high': has_high_priority = True
                                 w = MISSION_PRIORITY_WEIGHTS.get(prio, 1)
                                 missions.append({'id': m['id'], 'priority': prio, 'date': d_str})
                                 cost += w
                                 
-                        # Determine flags for this candidate
-                        slot_end = candidate_date + timedelta(days=ta)
-                        
-                        flag = ""
-                        action = ""
-                        if part_arrival.date() > fail_date.date():
-                            flag = "PART_ARRIVES_AFTER_FAILURE"
-                            action = "Expedite part or plan to ground aircraft."
-                        elif slot_end > fail_date.date():
-                            flag = "REPAIR_ENDS_AFTER_FAILURE"
-                            action = "Cannibalise part or accept downtime."
-                        elif has_high_priority:
-                            flag = "HIGH_PRIORITY_CONFLICT"
-                            action = "Reschedule missions."
-                            
-                        # If this is strictly better (lower cost) or (same cost but earlier)
-                        if best_ws is None or cost < best_cost or (cost == best_cost and candidate_date < best_slot_start.date()):
+                        is_better = False
+                        if best_slot_end is None or slot_end < best_slot_end.date():
+                            is_better = True
+                        elif slot_end == best_slot_end.date() and cost < best_cost:
+                            is_better = True
+                                
+                        if is_better:
                             best_ws = ws_id
-                            best_slot_start = datetime.combine(candidate_date, datetime.min.time())
+                            best_slot_start = datetime.combine(cand, datetime.min.time())
                             best_slot_end = datetime.combine(slot_end, datetime.min.time())
                             best_slot_index = slot_idx
                             best_cost = cost
                             best_missions = missions
-                            best_flag = flag
-                            best_action = action
                             best_out_of_horizon = out_of_horizon
-                            
-                candidate_date += timedelta(days=1)
+            cand += timedelta(days=1)
+            
+        has_high_priority = any(m['priority'] == 'high' for m in best_missions)
+        if part_arrival.date() > fail_date.date():
+            best_flag = "PART_ARRIVES_AFTER_FAILURE"
+            best_action = "Expedite part or plan to ground aircraft."
+        elif best_slot_start.date() > fail_date.date():
+            best_flag = "REPAIR_STARTS_AFTER_FAILURE"
+            best_action = "Cannibalise part or accept downtime."
+        elif best_slot_end.date() > fail_date.date():
+            best_flag = "REPAIR_ENDS_AFTER_FAILURE"
+            best_action = "Cannibalise part or accept downtime."
+        elif has_high_priority:
+            best_flag = "HIGH_PRIORITY_CONFLICT"
+            best_action = "Reschedule missions."
                 
         # Commit to the best slot
         ta = df_ws[df_ws['workshop_id'] == best_ws]['turnaround_days'].iloc[0]

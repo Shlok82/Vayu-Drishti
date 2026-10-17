@@ -242,7 +242,7 @@ def check_day3():
     bar_count = len([t for t in fig.data if type(t).__name__ == 'Bar'])
     check(bar_count == len(alerts_df), "Gantt bar count equals planned job count (1:1 mapping)", "Gantt bar count mismatch")
 
-    infeasible_jobs = recs[recs['flag'].isin(['PART_ARRIVES_AFTER_FAILURE', 'REPAIR_ENDS_AFTER_FAILURE'])]
+    infeasible_jobs = recs[recs['flag'].isin(['PART_ARRIVES_AFTER_FAILURE', 'REPAIR_ENDS_AFTER_FAILURE', 'REPAIR_STARTS_AFTER_FAILURE'])]
     hatched_traces = [t for t in fig.data if type(t).__name__ == 'Bar' and getattr(getattr(t.marker, 'pattern', None), 'shape', None)]
     assert len(hatched_traces) == len(infeasible_jobs), f"Expected {len(infeasible_jobs)} hatched traces, got {len(hatched_traces)}"
     passed += 1

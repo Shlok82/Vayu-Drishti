@@ -44,8 +44,8 @@ SENSITIVITIES = {
     # Rationale: 0.50 stress test evaluates catastrophic false alarm rate where half of all alerts are false alarms triggering unnecessary groundings
     'false_alarm_rates': [0.01, 0.05, 0.20, 0.50],
     # Alert lead time multiplier: evaluates model warning horizon from 0.0x (zero warning, complete model blindspot) to extended (1.5x)
-    # Rationale: 0.0 stress test evaluates zero advance notice, stripping predictive policy of its warning horizon advantage
-    'alert_lead_time_multipliers': [0.0, 0.5, 1.0, 1.5]
+    # Rationale: 0.0 stress test evaluates zero advance notice, stripping predictive policy of its warning horizon advantage; 0.25 evaluates a severely compressed warning window (quarter-horizon) to test resilience under degraded prognostic lead time.
+    'alert_lead_time_multipliers': [0.0, 0.25, 0.5, 1.0, 1.5]
 }
 
 def load_sim_config():
