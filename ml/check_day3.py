@@ -75,14 +75,39 @@ try:
         sys.exit(1)
     if "2_Digital_Twin.py" in page:
         at.button(key="play_btn"); at.button(key="pause_btn"); at.button(key="reset_btn")
-        
-        
-        
-        c = at.session_state.get("current_cycle", 1)
-        at.button(key="play_btn").click().run(timeout=60)
-        assert at.session_state["current_cycle"] > c, "Play did not advance cycle"
-        
-        for cycle in [52, 125, 150, 186, 208]:
+        try:
+            at.button(key="non_existent_btn_should_fail")
+            assert False, "Wrong button key did not raise KeyError"
+        except KeyError:
+            pass
+
+        at.button(key="play_btn").click()
+        cycles = []
+        for _ in range(5):
+            at.run(timeout=60)
+            assert not at.exception, f"Exception during playback: {at.exception}"
+            cycles.append(at.session_state["current_cycle"])
+        for i in range(len(cycles) - 1):
+            assert cycles[i+1] > cycles[i], f"Cycle did not strictly increase: {cycles}"
+
+        at.button(key="pause_btn").click()
+        at.run(timeout=60)
+        p1 = at.session_state["current_cycle"]
+        at.run(timeout=60)
+        p2 = at.session_state["current_cycle"]
+        assert p1 == p2, f"Cycle changed after Pause: {p1} != {p2}"
+
+        at.button(key="reset_btn").click()
+        at.run(timeout=60)
+        assert at.session_state["current_cycle"] == 1, f"Expected cycle 1 on Reset, got {at.session_state['current_cycle']}"
+
+        at.slider("slider").set_value(150).run(timeout=60)
+        assert not at.exception, f"Exception setting slider to 150: {at.exception}"
+        assert at.session_state["current_cycle"] == 150, f"Expected current_cycle 150, got {at.session_state['current_cycle']}"
+        cycle_metrics = [m for m in at.metric if m.label == "Current Cycle"]
+        assert cycle_metrics and cycle_metrics[0].value == "150", f"Displayed cycle metric is not 150: {cycle_metrics[0].value if cycle_metrics else 'None'}"
+
+        for cycle in [52, 125, 186, 208]:
             at.slider("slider").set_value(cycle).run(timeout=60)
             if at.exception:
                 print(f"Exception at cycle {cycle}: {at.exception}")
