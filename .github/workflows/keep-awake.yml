@@ -1,0 +1,39 @@
+name: keep-awake
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+jobs:
+  visit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install playwright && playwright install --with-deps chromium
+      - name: Visit app
+        run: |
+          python - <<'EOF'
+          from playwright.sync_api import sync_playwright
+          URL = "https://vayu-drishti.streamlit.app/"
+          with sync_playwright() as p:
+              b = p.chromium.launch()
+              page = b.new_page()
+              page.goto(URL, timeout=120000)
+              page.wait_for_timeout(10000)
+              btn = page.get_by_text("get this app back up")
+              if btn.count() > 0:
+                  print("Sleeping page detected, clicking wake button")
+                  btn.first.click()
+              else:
+                  print("No wake button found (app was already awake or page differs)")
+              page.wait_for_timeout(60000)
+              print("Title:", page.title())
+              page.screenshot(path="visit.png", full_page=True)
+              b.close()
+          EOF
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visit-screenshot
+          path: visit.png
