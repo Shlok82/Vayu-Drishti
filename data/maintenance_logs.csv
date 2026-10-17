@@ -1,6 +1,6 @@
 log_id,aircraft_id,component,date,kind,action,downtime_days
 LOG-0001,AF-1001,avionics_unit,2026-01-01,scheduled,Calibration,4
-LOG-0002,AF-1001,engine_2,2026-10-11,unscheduled,Routine Inspection,13
+LOG-0002,AF-1001,engine_2,2026-10-07,unscheduled,Routine Inspection,13
 LOG-0003,AF-1001,hydraulic_pump,2026-01-22,scheduled,Component Replacement,1
 LOG-0004,AF-1001,landing_gear_actuator,2026-01-04,scheduled,Component Replacement,3
 LOG-0005,AF-1001,engine_1,2026-01-22,unscheduled,Routine Inspection,7
@@ -26,7 +26,7 @@ LOG-0024,AF-1004,landing_gear_actuator,2025-11-15,unscheduled,Routine Inspection
 LOG-0025,AF-1004,hydraulic_pump,2025-12-16,unscheduled,Software Update,13
 LOG-0026,AF-1004,engine_2,2025-09-02,unscheduled,Component Replacement,11
 LOG-0027,AF-1005,avionics_unit,2025-09-26,scheduled,Software Update,3
-LOG-0028,AF-1005,generator,2026-10-19,unscheduled,Component Replacement,7
+LOG-0028,AF-1005,generator,2026-10-13,unscheduled,Component Replacement,7
 LOG-0029,AF-1005,landing_gear_actuator,2025-11-24,unscheduled,Software Update,10
 LOG-0030,AF-1005,landing_gear_actuator,2026-03-15,unscheduled,Component Replacement,14
 LOG-0031,AF-1005,engine_1,2026-07-25,unscheduled,Calibration,11

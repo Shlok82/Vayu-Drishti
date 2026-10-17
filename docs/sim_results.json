@@ -440,6 +440,20 @@
         },
         {
             "Parameter": "Alert Lead Multiplier",
+            "Setting": "0.25",
+            "Reactive Avail": 0.8640208333333333,
+            "Predictive Avail": 0.8733842592592592,
+            "Delta Avail (+ means predictive better)": 0.009363425925925926,
+            "Reactive Unsched": 305.13,
+            "Predictive Unsched": 255.89,
+            "Delta Unsched (- means predictive fewer)": -49.24,
+            "Reactive Missions": 252.29,
+            "Predictive Missions": 238.54,
+            "Delta Missions (- means predictive fewer)": -13.75,
+            "Pred Win Rate": 0.7
+        },
+        {
+            "Parameter": "Alert Lead Multiplier",
             "Setting": "0.5",
             "Reactive Avail": 0.8640208333333333,
             "Predictive Avail": 0.8931481481481481,
