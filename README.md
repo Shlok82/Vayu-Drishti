@@ -18,35 +18,33 @@ Fragmented data, delayed fault prediction, avoidable aircraft downtime, and sub-
 - **Model:** XGBoost RUL (Remaining Useful Life) regression based on NASA's C-MAPSS dataset.
 - **App:** Streamlit UI providing a fleet overview, aircraft digital twin, and alerts.
 
-## Setup
+Live demo: (add after deploy)
+
+## Run Locally (PowerShell)
 1. Clone this repository.
 2. Create and activate a virtual environment:
-   ```cmd
+   ```powershell
    python -m venv .venv
-   .venv\Scripts\activate
+   .venv\Scripts\Activate.ps1
    ```
 3. Install dependencies: 
-   ```cmd
+   ```powershell
    pip install -r requirements.txt
    ```
-4. Run the ML pipeline:
-   ```cmd
-   python ml\train_baseline.py
-   python ml\evaluate.py
-   python ml\make_synthetic.py
-   python ml\make_predictions.py
-   ```
-5. Run the application: 
-   ```cmd
+4. Run the application: 
+   ```powershell
    streamlit run app\main.py
    ```
+
+## Data Note
+Raw NASA training and test files (`train_FD001.txt`, `test_FD001.txt`, `RUL_FD001.txt`) are not included in the repository. The source dataset is available at the [NASA Prognostics Data Repository](https://ti.arc.nasa.gov/tech/dash/groups/pcoe/prognostic-data-repository/). The application and all self-checks run fully without raw data using precomputed predictions, trained models, and committed demo replay slices.
 
 ## Data Sources
 - **Sensor Data:** [NASA C-MAPSS (Commercial Modular Aero-Propulsion System Simulation)](https://ti.arc.nasa.gov/tech/dash/groups/pcoe/prognostic-data-repository/) FD001 dataset.
 - **Citation:** Saxena et al. 2008, "Damage Propagation Modeling for Aircraft Engine Run-to-Failure Simulation".
 
-## Synthetic-Data Disclosure
-C-MAPSS is a public NASA *civil turbofan simulation*, not data from any real air force fleet. We use it to show the method. What the real data does not contain: spares, workshops, technical/maintenance records, flight schedules, and tail numbers. No public military dataset has these, so they are **purely synthetic**. 
+## Synthetic-Data Disclosure & Honest Framing
+C-MAPSS is a public NASA civil turbofan simulation, not data from any real air force fleet. We use it to show the method. What the real data does not contain: spares, workshops, technical/maintenance records, flight schedules, and tail numbers. No public military dataset has these, so they are purely synthetic simulations. Policy simulation readiness gains reflect the parameters chosen for evaluation rather than empirical field trials.
 
 ## Assumptions
 - One cycle in the dataset corresponds to one flight.
@@ -57,6 +55,7 @@ C-MAPSS is a public NASA *civil turbofan simulation*, not data from any real air
 - **Synthetic Maintenance Data:** `maintenance_logs` has 6-18 months of history. Downtime for scheduled (1-4 days) and unscheduled (3-14 days). Parts catalog has 5-45 days lead time. Flight schedule generated for 60 days.
 - **Demo Aircraft & Replay:** Replays held-out NASA C-MAPSS engine unit 71 on demo aircraft `AF-1001` (Generic Fighter Trainer, Base Charlie, 0.93 flights/day).
 - **Simulation Horizon & Metrics:** Monte Carlo policy simulation runs over a 90-day horizon (`SIMULATION['days'] = 90`) across 200 iterations. Fleet availability measures the proportion of aircraft-days ready. "Unscheduled Downtime (Engine-Days)" measures cumulative component downtime across all engine failure events; because dual-engine failures on a single airframe can overlap, total unscheduled engine-days can exceed net aircraft downtime days `(1 - availability) * 24 * 90`.
+- **Maintenance Scheduling & Conflicts:** Mission conflicts are only a tie-break among equally early slots, and high-priority conflicts are flagged (`HIGH_PRIORITY_CONFLICT`).
 
 ## Model Performance
 - **Environment:** Python 3.13.5 | XGBoost 3.4.1

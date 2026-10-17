@@ -25,5 +25,8 @@ Since public military datasets do not contain spares, workshops, maintenance rec
 - **Demo Aircraft & Replay:** The Digital Twin replays held-out NASA C-MAPSS engine unit 71 assigned to demo aircraft `AF-1001` (Generic Fighter Trainer, Base Charlie, 0.93 flights/day).
 - **Simulation Horizon:** The Monte Carlo policy simulation runs over a 90-day horizon (`SIMULATION['days'] = 90`) across 200 iterations comparing reactive vs. predictive maintenance.
 
+## Maintenance Scheduling & Conflict Logic
+The planner prioritizes earliest feasible maintenance completion so that jobs finish before predicted failure dates. Mission conflicts are only a tie-break among equally early slots, and high-priority conflicts are flagged (`HIGH_PRIORITY_CONFLICT`).
+
 ## Real-World Deployment
 A real deployment would train on the service's own health-monitoring data, strictly on-premise and offline, using actual SAP/ERP integration for spares and work orders.
