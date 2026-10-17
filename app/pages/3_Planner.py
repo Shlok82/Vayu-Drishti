@@ -91,13 +91,15 @@ def build_gantt(recs, alerts_df):
         annotation_position="top right"
     )
     
-    latest_end = max(datetime.strptime(r['slot_end'], "%Y-%m-%d") for _, r in recs.iterrows()) if not recs.empty else datetime.strptime(as_of_d, "%Y-%m-%d")
+    latest_slot_end = max(datetime.strptime(r['slot_end'], "%Y-%m-%d") for _, r in recs.iterrows()) if not recs.empty else datetime.strptime(as_of_d, "%Y-%m-%d")
+    latest_fail = max(datetime.strptime(r['predicted_failure'], "%Y-%m-%d") for _, r in recs.iterrows()) if not recs.empty else datetime.strptime(as_of_d, "%Y-%m-%d")
+    max_date = max(latest_slot_end, latest_fail)
     fig.update_layout(
         barmode='overlay',
         yaxis=dict(categoryarray=all_aircraft, type='category', title='Aircraft'),
         xaxis=dict(
             type='date',
-            range=[as_of_d, (latest_end + timedelta(days=7)).strftime("%Y-%m-%d")]
+            range=[as_of_d, (max_date + timedelta(days=7)).strftime("%Y-%m-%d")]
         ),
         margin=dict(l=0, r=0, t=30, b=0),
         height=300 + 40 * len(all_aircraft),

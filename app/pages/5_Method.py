@@ -6,16 +6,18 @@ if str(_root) not in sys.path:
 import streamlit as st
 import os
 
+from ml.config import DOCS_DIR
+
 def main():
     st.title("Methodology & Disclaimers")
     
-    method_path = 'docs/methodology.md'
-    if os.path.exists(method_path):
-        with open(method_path, 'r') as f:
+    method_path = DOCS_DIR / 'methodology.md'
+    if method_path.exists():
+        with open(method_path, 'r', encoding='utf-8') as f:
             content = f.read()
         st.markdown(content)
     else:
-        st.error("docs/methodology.md not found.")
+        st.error("Methodology document not found.")
 
 if __name__ == '__main__':
     main()
