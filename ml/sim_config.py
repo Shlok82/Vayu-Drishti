@@ -3,6 +3,8 @@ from pathlib import Path
 _root = Path(__file__).resolve().parents[1]
 if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
+from ml.repair import get_repair_days
+
 # Simulation config
 
 SIMULATION = {
@@ -20,7 +22,7 @@ REACTIVE = {
 
 PREDICTIVE = {
     'false_alarm_rate': 0.05, # Ratio of false alarms (maintenance done but no failure imminent)
-    'repair_days': 2, # Time taken for planned repair
+    'repair_days': get_repair_days('engine_1'), # Time taken for planned repair: matches workshop WS-1 (3 days) via get_repair_days
     'lead_time_multiplier': 1.0, # Lead time multiplier if part is not in stock
     'alert_lead_time_source': 'metrics.json' # Source of the alert lead-time distribution
 }
@@ -34,14 +36,16 @@ SENSITIVITIES = {
     'diagnosis_delay_days': [0, 2, 5, 10],
     # Reactive repair day ranges: evaluates unscheduled repair time from fast [1, 3] to nominal [3, 7] and delayed [10, 20] days
     'repair_days_reactive': [[1, 3], [3, 7], [10, 20]],
-    # Predictive repair days: paired with reactive ranges; nominal set to 2 matching baseline PREDICTIVE['repair_days']
-    'repair_days_predictive': [1, 2, 7],
+    # Predictive repair days: paired with reactive ranges; nominal set to 3 matching baseline PREDICTIVE['repair_days'] via get_repair_days
+    'repair_days_predictive': [1, get_repair_days('engine_1'), 7],
     # Part lead time multiplier: evaluates supply chain variation from expedited (0.5x) to delayed (2.0x)
     'lead_time_multipliers': [0.5, 1.0, 2.0],
-    # False alarm rate: evaluates model precision impact from 1% (clean predictions) to 20% (frequent false alarms)
-    'false_alarm_rates': [0.01, 0.05, 0.20],
-    # Alert lead time multiplier: evaluates model warning horizon from compressed (0.5x) to extended (1.5x)
-    'alert_lead_time_multipliers': [0.5, 1.0, 1.5]
+    # False alarm rate: evaluates model precision impact from 1% (clean predictions) to 50% (severe stress test)
+    # Rationale: 0.50 stress test evaluates catastrophic false alarm rate where half of all alerts are false alarms triggering unnecessary groundings
+    'false_alarm_rates': [0.01, 0.05, 0.20, 0.50],
+    # Alert lead time multiplier: evaluates model warning horizon from 0.0x (zero warning, complete model blindspot) to extended (1.5x)
+    # Rationale: 0.0 stress test evaluates zero advance notice, stripping predictive policy of its warning horizon advantage
+    'alert_lead_time_multipliers': [0.0, 0.5, 1.0, 1.5]
 }
 
 def load_sim_config():
