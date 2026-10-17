@@ -46,7 +46,7 @@ def main():
                 summary_data.append({
                     'Policy': policy,
                     'Availability (%)': f"{data['avail_mean']*100:.1f} ({data['avail_p025']*100:.1f} - {data['avail_p975']*100:.1f})",
-                    'Unscheduled Days': f"{data['unsched_mean']:.1f} ({data['unsched_p025']:.1f} - {data['unsched_p975']:.1f})",
+                    'Unscheduled Downtime (Engine-Days)': f"{data['unsched_mean']:.1f} ({data['unsched_p025']:.1f} - {data['unsched_p975']:.1f})",
                     'Missions Affected': f"{data['missions_mean']:.1f} ({data['missions_p025']:.1f} - {data['missions_p975']:.1f})"
                 })
         st.dataframe(pd.DataFrame(summary_data), hide_index=True)

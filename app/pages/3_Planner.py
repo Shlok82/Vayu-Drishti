@@ -31,7 +31,7 @@ def build_gantt(recs, alerts_df):
         
         risk = alerts_df[(alerts_df['aircraft_id'] == ac) & (alerts_df['component'] == row['component'])]['risk_level'].iloc[0]
         
-        is_infeasible = flag in ['PART_ARRIVES_AFTER_FAILURE', 'REPAIR_ENDS_AFTER_FAILURE']
+        is_infeasible = flag in ['PART_ARRIVES_AFTER_FAILURE', 'REPAIR_ENDS_AFTER_FAILURE', 'REPAIR_STARTS_AFTER_FAILURE']
         color = 'lightgrey' if is_infeasible else ('red' if risk == 'red' else 'orange')
         line = dict(color='black', width=1) if is_infeasible else dict(width=0)
         pattern = dict(shape='/') if is_infeasible else None
@@ -60,7 +60,7 @@ def build_gantt(recs, alerts_df):
             marker_color=color,
             marker_line=line,
             marker_pattern=pattern,
-            text=ac,
+            text="" if is_infeasible else ac,
             textposition='inside',
             textfont=dict(color='#1E293B' if is_infeasible else 'white'),
             hoverinfo='text',
@@ -79,8 +79,17 @@ def build_gantt(recs, alerts_df):
         ))
         added_fail_legend = True
         
-    as_of_d = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M").strftime("%Y-%m-%d")
-    fig.add_vline(x=datetime.strptime(as_of_d, "%Y-%m-%d").timestamp() * 1000, line_width=2, line_dash="dash", line_color="black")
+    as_of_dt_obj = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M")
+    as_of_d = as_of_dt_obj.strftime("%Y-%m-%d")
+    as_of_label = as_of_dt_obj.strftime("As of %d %b")
+    fig.add_vline(
+        x=datetime.strptime(as_of_d, "%Y-%m-%d").timestamp() * 1000,
+        line_width=2,
+        line_dash="dash",
+        line_color="black",
+        annotation_text=as_of_label,
+        annotation_position="top right"
+    )
     
     latest_end = max(datetime.strptime(r['slot_end'], "%Y-%m-%d") for _, r in recs.iterrows()) if not recs.empty else datetime.strptime(as_of_d, "%Y-%m-%d")
     fig.update_layout(
@@ -121,7 +130,7 @@ def main():
     total_jobs = len(recs)
     
     # Define groups
-    infeasible_mask = recs['flag'].isin(['PART_ARRIVES_AFTER_FAILURE', 'REPAIR_ENDS_AFTER_FAILURE'])
+    infeasible_mask = recs['flag'].isin(['PART_ARRIVES_AFTER_FAILURE', 'REPAIR_ENDS_AFTER_FAILURE', 'REPAIR_STARTS_AFTER_FAILURE'])
     infeasible_count = infeasible_mask.sum()
     
     conflict_mask = (~infeasible_mask) & ((recs['flag'] == 'HIGH_PRIORITY_CONFLICT') | (recs['mission_cost'] > 0))
