@@ -216,6 +216,8 @@ def main():
 import sys
 from streamlit.testing.v1 import AppTest
 at = AppTest.from_file(r"{page_rel}", default_timeout=30)
+at.session_state["auth_user"] = "admin"
+at.session_state["role"] = "admin"
 at.run()
 if at.exception:
     print(f"EXCEPTION: {{at.exception}}")

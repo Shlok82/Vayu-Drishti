@@ -154,18 +154,25 @@ def check_day2():
     print("--- Streamlit AppTests ---")
     try:
         from streamlit.testing.v1 import AppTest
+        from app.auth import set_current_user
         root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-        at_main = AppTest.from_file(os.path.join(root, "app/main.py")).run(timeout=60)
+        at_main = AppTest.from_file(os.path.join(root, "app/main.py"))
+        set_current_user("viewer", session_state=at_main.session_state)
+        at_main.run(timeout=60)
         assert not at_main.exception, f"Exception in app/main.py: {at_main.exception}"
         passed += 1
         print("PASS: app/main.py renders without exceptions")
         
-        at_ad = AppTest.from_file(os.path.join(root, "app/pages/1_Aircraft_Detail.py")).run(timeout=60)
+        at_ad = AppTest.from_file(os.path.join(root, "app/pages/1_Aircraft_Detail.py"))
+        set_current_user("viewer", session_state=at_ad.session_state)
+        at_ad.run(timeout=60)
         assert not at_ad.exception, f"Exception in 1_Aircraft_Detail.py: {at_ad.exception}"
         passed += 1
         print("PASS: app/pages/1_Aircraft_Detail.py renders without exceptions")
         
-        at_dt = AppTest.from_file(os.path.join(root, "app/pages/2_Digital_Twin.py")).run(timeout=60)
+        at_dt = AppTest.from_file(os.path.join(root, "app/pages/2_Digital_Twin.py"))
+        set_current_user("maintainer", session_state=at_dt.session_state)
+        at_dt.run(timeout=60)
         assert not at_dt.exception, f"Exception in 2_Digital_Twin.py: {at_dt.exception}"
         
         # Interact with the slider

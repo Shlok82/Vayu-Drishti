@@ -69,7 +69,10 @@ from streamlit.testing.v1 import AppTest
 page = sys.argv[1]
 try:
     start_time = time.time()
-    at = AppTest.from_file(page).run(timeout=60)
+    at = AppTest.from_file(page)
+    at.session_state["auth_user"] = "admin"
+    at.session_state["role"] = "admin"
+    at.run(timeout=60)
     if at.exception:
         print(f"Exception in {page}: {at.exception}")
         sys.exit(1)
@@ -403,6 +406,511 @@ def check_day3():
             if slack > 30 and r['status'] != 'OK':
                 ok_slack = False
     check(ok_slack, "Green zero-stock engine with slack > 30 shows OK", "Green zero-stock engine with slack > 30 does not show OK")
+
+    # Auth helpers and credentials security check (Stage L1)
+    print("--- Auth Helpers & Access Control Check ---")
+    import re
+    from app.auth import verify, allowed_pages, PAGES_BY_ROLE, GUEST_ROLE, DEMO_USERS
+
+    demo_access_file = _root / 'docs' / 'DEMO_ACCESS.md'
+    assert demo_access_file.exists(), "docs/DEMO_ACCESS.md does not exist"
+    with open(demo_access_file, 'r', encoding='utf-8') as f:
+        demo_access_text = f.read()
+
+    creds = {}
+    for line in demo_access_text.splitlines():
+        m = re.search(r'`(viewer|maintainer|admin)`\s*\|\s*`([^`]+)`', line)
+        if m:
+            creds[m.group(1)] = m.group(2)
+
+    check(len(creds) == 3, "All three demo credentials parsed from docs/DEMO_ACCESS.md", "Failed parsing credentials from docs/DEMO_ACCESS.md")
+
+    roles_ok = True
+    for u, p in creds.items():
+        if verify(u, p) != u:
+            roles_ok = False
+            print(f"FAIL: verify({u}, ...) returned {verify(u, p)}, expected {u}")
+    check(roles_ok, "Correct credentials return the right role for all three users")
+
+    wrong_pw_ok = (
+        verify("viewer", "wrong_password_xyz") is None
+        and verify("maintainer", "wrong_password_xyz") is None
+        and verify("admin", "wrong_password_xyz") is None
+        and verify("nonexistent_user", creds.get("admin", "")) is None
+    )
+    check(wrong_pw_ok, "Wrong password and unknown user return None")
+
+    empty_ok = (
+        verify("", "") is None
+        and verify("viewer", "") is None
+        and verify("", creds.get("viewer", "")) is None
+        and verify(None, None) is None
+        and verify("viewer", None) is None
+        and verify(None, creds.get("viewer", "")) is None
+    )
+    check(empty_ok, "Empty input returns None")
+
+    v_pages = allowed_pages("viewer")
+    viewer_excludes_ok = not any("Planner" in p for p in v_pages) and not any("Digital Twin" in p for p in v_pages)
+    check(viewer_excludes_ok, "allowed_pages for viewer excludes Planner and Digital Twin")
+
+    admin_pages = allowed_pages("admin")
+    req_pages = ["Fleet Overview", "Aircraft Detail", "Digital Twin", "Planner", "Results", "Methodology"]
+    admin_all_ok = all(any(rp in ap for ap in admin_pages) for rp in req_pages)
+    check(admin_all_ok, "admin includes all pages")
+
+    no_plaintext_pw = True
+    for folder in ['app', 'ml']:
+        for root_dir, _, fnames in os.walk(_root / folder):
+            for fname in fnames:
+                if fname.endswith(('.py', '.json', '.csv', '.txt', '.md', '.yaml', '.yml')):
+                    fpath = Path(root_dir) / fname
+                    with open(fpath, 'r', encoding='utf-8', errors='ignore') as fp:
+                        content = fp.read()
+                        for u, pw in creds.items():
+                            if pw in content:
+                                no_plaintext_pw = False
+                                print(f"FAIL: Plaintext password for {u} found in {fpath.relative_to(_root)}")
+    check(no_plaintext_pw, "Grep over app/ and ml/ finds none of the three plain-text passwords")
+
+    print("--- Stage L2: Login Gate & Page Authorization Tests ---")
+    from streamlit.testing.v1 import AppTest
+
+    # (a) main.py without auth shows login form and no dashboard
+    at_unauth = AppTest.from_file(str(_root / "app" / "main.py"))
+    at_unauth.run(timeout=30)
+    has_login = any("Login" in str(s.value) for s in at_unauth.subheader) or len(at_unauth.text_input) >= 2
+    has_caption = any("Demo access control, not production security." in str(c.value) for c in at_unauth.caption)
+    no_dashboard = not any("Fleet Status" in str(s.value) for s in at_unauth.subheader)
+    check(has_login and has_caption and no_dashboard and not at_unauth.exception,
+          "main.py without auth shows login form and no dashboard")
+
+    # (b) each role renders allowed pages without exception
+    page_file_map = {
+        "Fleet Overview": _root / "app" / "pages" / "0_Fleet_Overview.py",
+        "Aircraft Detail": _root / "app" / "pages" / "1_Aircraft_Detail.py",
+        "Digital Twin": _root / "app" / "pages" / "2_Digital_Twin.py",
+        "Planner": _root / "app" / "pages" / "3_Planner.py",
+        "Results": _root / "app" / "pages" / "4_Results.py",
+        "Methodology": _root / "app" / "pages" / "5_Method.py",
+    }
+    roles_ok = True
+    for r in ["viewer", "maintainer", "admin"]:
+        for p_title in allowed_pages(r):
+            p_file = page_file_map.get(p_title)
+            if p_file and p_file.exists():
+                at_r = AppTest.from_file(str(p_file))
+                at_r.session_state["auth_user"] = r
+                at_r.session_state["role"] = r
+                at_r.run(timeout=30)
+                denied_errors = [e.value for e in at_r.error if "access denied" in e.value.lower()]
+                if at_r.exception or len(denied_errors) > 0:
+                    roles_ok = False
+                    print(f"FAIL: Role {r} failed rendering allowed page {p_title}: {at_r.exception or denied_errors}")
+    check(roles_ok, "Each role renders allowed pages without exception")
+
+    # (c) viewer opening Planner or Twin directly gets error and no page content (st.stop())
+    viewer_restricted_ok = True
+    for restricted in ["2_Digital_Twin.py", "3_Planner.py"]:
+        at_v = AppTest.from_file(str(_root / "app" / "pages" / restricted))
+        at_v.session_state["auth_user"] = "viewer"
+        at_v.session_state["role"] = "viewer"
+        at_v.run(timeout=30)
+        has_denied = any("access denied" in e.value.lower() for e in at_v.error)
+        if restricted == "2_Digital_Twin.py":
+            stopped = len([m for m in at_v.metric if m.label == "Current Cycle"]) == 0
+        else:
+            stopped = not any("Plan Summary" in str(s.value) for s in at_v.subheader)
+        if not (has_denied and stopped and not at_v.exception):
+            viewer_restricted_ok = False
+            print(f"FAIL: Viewer accessing {restricted} directly did not stop with error (has_denied={has_denied}, stopped={stopped})")
+    check(viewer_restricted_ok, "Viewer opening Planner or Twin directly gets error and no page content (st.stop())")
+
+    # (d) Logout clears session
+    at_logout = AppTest.from_file(str(_root / "app" / "main.py"))
+    at_logout.session_state["auth_user"] = "admin"
+    at_logout.session_state["role"] = "admin"
+    at_logout.run(timeout=30)
+    at_logout.sidebar.button(key="logout_btn").click().run(timeout=30)
+    logout_cleared = (not at_logout.session_state.get("auth_user")) and (not at_logout.session_state.get("role"))
+    logout_login_shown = any("Demo access control, not production security." in str(c.value) for c in at_logout.caption)
+    check(logout_cleared and logout_login_shown, "Logout clears session auth_user and role and returns to login gate")
+
+    print("--- Stage L2-FIX: Enhanced Security & Authorization Checks ---")
+    from app.auth import set_current_user
+
+    # LF4(a): app/auth.py and every file in app/ contain none of: sys.argv, os.environ, check_day, TEST_MODE, BYPASS
+    forbidden_patterns = ["sys.argv", "os.environ", "check_day", "TEST_MODE", "BYPASS"]
+    app_files = []
+    for r_dir, _, f_names in os.walk(_root / "app"):
+        for f_n in f_names:
+            if f_n.endswith(".py"):
+                app_files.append(Path(r_dir) / f_n)
+
+    forbidden_found = []
+    for f_p in sorted(app_files):
+        with open(f_p, "r", encoding="utf-8", errors="replace") as fp:
+            f_content = fp.read()
+        for pat in forbidden_patterns:
+            if pat in f_content:
+                forbidden_found.append((str(f_p.relative_to(_root)), pat))
+
+    print(f"Forbidden search across {len(app_files)} files in app/ (patterns={forbidden_patterns}): {forbidden_found}")
+    check(len(forbidden_found) == 0, "app/ files contain none of: sys.argv, os.environ, check_day, TEST_MODE, BYPASS")
+
+    # LF4(b): every page, run with an empty session state, shows the login prompt or access denied and renders none of its normal content
+    all_pages = [
+        _root / "app" / "main.py",
+        _root / "app" / "pages" / "0_Fleet_Overview.py",
+        _root / "app" / "pages" / "1_Aircraft_Detail.py",
+        _root / "app" / "pages" / "2_Digital_Twin.py",
+        _root / "app" / "pages" / "3_Planner.py",
+        _root / "app" / "pages" / "4_Results.py",
+        _root / "app" / "pages" / "5_Method.py",
+    ]
+    empty_session_ok = True
+    for p_path in all_pages:
+        at_empty = AppTest.from_file(str(p_path))
+        at_empty.run(timeout=30)
+        p_name = p_path.name
+        if p_name == "main.py":
+            has_prompt = any("Login" in str(s.value) for s in at_empty.subheader) and len(at_empty.text_input) >= 2
+            no_normal = (
+                not any("Fleet Status" in str(s.value) for s in at_empty.subheader)
+                and len(at_empty.metric) == 0
+                and len(at_empty.dataframe) == 0
+            )
+            if not (has_prompt and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: main.py with empty session failed (has_prompt={has_prompt}, no_normal={no_normal})")
+        elif p_name == "0_Fleet_Overview.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = (
+                not any("Fleet Status" in str(s.value) for s in at_empty.subheader)
+                and len(at_empty.dataframe) == 0
+            )
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+        elif p_name == "1_Aircraft_Detail.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = len(at_empty.selectbox) == 0 and len(at_empty.dataframe) == 0
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+        elif p_name == "2_Digital_Twin.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = len(at_empty.metric) == 0 and len(at_empty.button) == 0 and len(at_empty.slider) == 0
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+        elif p_name == "3_Planner.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = len(at_empty.subheader) == 0 and len(at_empty.dataframe) == 0
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+        elif p_name == "4_Results.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = len(at_empty.subheader) == 0 and len(at_empty.dataframe) == 0
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+        elif p_name == "5_Method.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = len(at_empty.markdown) == 0
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+    check(empty_session_ok, "Every page with empty session state shows login prompt or access denied and renders none of normal content")
+
+    # LF4(c): a viewer account is denied the admin-only page and the maintainer-only pages
+    viewer_denials_ok = True
+    for restricted_page in ["2_Digital_Twin.py", "3_Planner.py"]:
+        at_vd = AppTest.from_file(str(_root / "app" / "pages" / restricted_page))
+        set_current_user("viewer", session_state=at_vd.session_state)
+        at_vd.run(timeout=30)
+        has_denied = any("access denied" in e.value.lower() for e in at_vd.error)
+        no_content = (
+            len(at_vd.metric) == 0
+            and len(at_vd.subheader) == 0
+            and len(at_vd.dataframe) == 0
+            and not at_vd.exception
+        )
+        if not (has_denied and no_content):
+            viewer_denials_ok = False
+            print(f"FAIL: Viewer was not strictly denied {restricted_page} (has_denied={has_denied}, no_content={no_content})")
+    check(viewer_denials_ok, "Viewer account is strictly denied maintainer/admin pages and renders no page content")
+    
+    # Stage T1: Wear and Twin 3D Payload Checks
+    print("--- Stage T1: Wear and Twin 3D Payload Checks ---")
+    from ml.module_wear import wear_from_rul, module_wear_series
+    from app.twin3d import build_twin_payload
+    from ml.config import AS_OF
+
+    # 1. wear_from_rul at boundary points
+    w125 = wear_from_rul(125)
+    w0 = wear_from_rul(0)
+    w_boundaries_ok = (
+        all(v == 0.0 for v in w125.values())
+        and w0.get("turbine") == 100.0
+        and w0.get("fan") == 60.0
+    )
+    check(w_boundaries_ok, "wear_from_rul(125) is 0 for all modules; turbine at RUL 0 is 100; fan at RUL 0 is 60")
+
+    # 2. Falling RUL monotonic wear
+    falling_rul = list(range(125, -1, -1))
+    series_falling = module_wear_series(falling_rul)
+    falling_monotone = True
+    for mod, vals in series_falling.items():
+        for i in range(len(vals) - 1):
+            if vals[i + 1] < vals[i]:
+                falling_monotone = False
+    check(falling_monotone, "Module wear never decreases for RUL sequence falling from 125 to 0")
+
+    # 3. Noisy RUL series monotonic and bounded [0, 100]
+    import numpy as np
+    rng = np.random.default_rng(42)
+    noisy_rul = [125.0 - i + float(rng.uniform(-10.0, 10.0)) for i in range(150)]
+    series_noisy = module_wear_series(noisy_rul)
+    noisy_ok = True
+    for mod, vals in series_noisy.items():
+        if not all(0.0 <= v <= 100.0 for v in vals):
+            noisy_ok = False
+        for i in range(len(vals) - 1):
+            if vals[i + 1] < vals[i]:
+                noisy_ok = False
+    check(noisy_ok, "module_wear_series on noisy series is non-decreasing and bounded in [0, 100]")
+
+    # 4. Causality check
+    causality_ok = True
+    for k in [10, 50, 150]:
+        series_k = module_wear_series(noisy_rul[:k])
+        for mod in ["fan", "compressor", "combustor", "turbine"]:
+            if series_k[mod] != series_noisy[mod][:k]:
+                causality_ok = False
+    check(causality_ok, "Causality: module_wear_series(rul[:k]) equals first k values of full series for k in {10, 50, 150}")
+
+    # 5. Build twin payload and check schema, size, disclaimer
+    as_of_dt = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M")
+    rep_dates = [(as_of_dt + timedelta(days=(float(c) - 1.0) / fpd)).strftime("%Y-%m-%d %H:%M") for c in df_rep["cycle"]]
+    e2_row = df_preds[(df_preds["aircraft_id"] == DEMO_AIRCRAFT_ID) & (df_preds["component"] == "engine_2")].iloc[0]
+    e2_rul = float(e2_row["predicted_rul_cycles"])
+    e2_risk = str(e2_row["risk_level"])
+
+    t1_payload = build_twin_payload(
+        aircraft_id=DEMO_AIRCRAFT_ID,
+        engine_id=engine_for_aircraft(DEMO_AIRCRAFT_ID),
+        replay_df=df_rep,
+        debounced_status=debounced_status,
+        debounced_risk=debounced_risk,
+        dates=rep_dates,
+        engine2_rul=e2_rul,
+        engine2_risk=e2_risk,
+    )
+
+    n_cycles = len(df_rep)
+    e1_lens_ok = (
+        len(t1_payload["engine1"]["cycles"]) == n_cycles
+        and len(t1_payload["engine1"]["dates"]) == n_cycles
+        and len(t1_payload["engine1"]["rul"]) == n_cycles
+        and len(t1_payload["engine1"]["risk"]) == n_cycles
+        and len(t1_payload["engine1"]["status"]) == n_cycles
+        and all(len(t1_payload["engine1"]["wear"][m]) == n_cycles for m in ["fan", "compressor", "combustor", "turbine"])
+    )
+    t1_json_str = json.dumps(t1_payload)
+    t1_bytes = len(t1_json_str.encode("utf-8"))
+    print(f"Twin payload serialized size: {t1_bytes} bytes ({t1_bytes / 1024:.2f} KB)")
+    size_ok = t1_bytes < 500 * 1024
+
+    required_schema_keys = (
+        all(k in t1_payload for k in ["version", "disclaimer", "aircraft_id", "engine1", "engine2"])
+        and all(k in t1_payload["engine1"] for k in ["engine_id", "cycles", "dates", "rul", "risk", "status", "wear"])
+        and all(m in t1_payload["engine1"]["wear"] for m in ["fan", "compressor", "combustor", "turbine"])
+        and all(k in t1_payload["engine2"] for k in ["static", "rul", "risk", "wear", "note"])
+        and all(m in t1_payload["engine2"]["wear"] for m in ["fan", "compressor", "combustor", "turbine"])
+    )
+    disclaimer_ok = "Illustrative" in t1_payload["disclaimer"]
+
+    check(
+        e1_lens_ok and size_ok and required_schema_keys and disclaimer_ok,
+        "Twin payload structure, cycle list lengths, size under 500 KB, schema keys, and disclaimer verified"
+    )
+
+    # 6. Payload status and risk sequences equal Twin page debounced series exactly
+    status_match = list(t1_payload["engine1"]["status"]) == list(debounced_status)
+    risk_match = list(t1_payload["engine1"]["risk"]) == list(debounced_risk)
+    check(status_match and risk_match, "Payload status and risk sequences equal Twin page debounced series exactly")
+    
+    # Stage T2: Three.js Scene & Standalone Preview Checks
+    print("--- Stage T2: Three.js Scene & Standalone Preview Checks ---")
+    from html.parser import HTMLParser
+    from app.twin3d import render_twin3d_html
+
+    t2_html = render_twin3d_html(t1_payload)
+
+    # 1. Pinned script URLs and payload aircraft_id & disclaimer text
+    u_three = "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"
+    u_orbit = "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"
+    t2_urls_and_text_ok = (
+        u_three in t2_html
+        and u_orbit in t2_html
+        and t1_payload["aircraft_id"] in t2_html
+        and t1_payload["disclaimer"] in t2_html
+    )
+    check(t2_urls_and_text_ok, "Generated HTML contains pinned Three.js/OrbitControls URLs, aircraft_id, and disclaimer text")
+
+    # 2. Script-tag balance and ends with </html>
+    class _ScriptBalanceParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.open_scripts = 0
+            self.close_scripts = 0
+            self.inline_scripts = []
+            self._in_script = False
+            self._has_src = False
+            self._buf = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag.lower() == "script":
+                self.open_scripts += 1
+                self._in_script = True
+                attr_dict = dict(attrs)
+                self._has_src = "src" in attr_dict
+                self._buf = []
+
+        def handle_endtag(self, tag):
+            if tag.lower() == "script":
+                self.close_scripts += 1
+                if self._in_script and not self._has_src:
+                    self.inline_scripts.append("".join(self._buf))
+                self._in_script = False
+                self._has_src = False
+                self._buf = []
+
+        def handle_data(self, data):
+            if self._in_script and not self._has_src:
+                self._buf.append(data)
+
+    p_balance = _ScriptBalanceParser()
+    p_balance.feed(t2_html)
+    balance_ok = (p_balance.open_scripts == p_balance.close_scripts) and t2_html.strip().endswith("</html>")
+    check(balance_ok, f"Script-tag balance ({p_balance.open_scripts} open, {p_balance.close_scripts} close) and HTML ends with </html>")
+
+    # 3. Hostile string handling
+    hostile_payload = dict(t1_payload)
+    hostile_payload["aircraft_id"] = "AF</script><b>x"
+    hostile_html = render_twin3d_html(hostile_payload)
+    p_hostile = _ScriptBalanceParser()
+    p_hostile.feed(hostile_html)
+    hostile_ok = (
+        "AF</script><b>x" not in hostile_html
+        and (p_hostile.open_scripts == p_hostile.close_scripts)
+        and hostile_html.strip().endswith("</html>")
+    )
+    check(hostile_ok, "Hostile string 'AF</script><b>x' is safely escaped and preserves script-tag balance")
+
+    # 4. Single-cycle payload renders without exception
+    single_cycle_payload = build_twin_payload(
+        aircraft_id=DEMO_AIRCRAFT_ID,
+        engine_id=engine_for_aircraft(DEMO_AIRCRAFT_ID),
+        replay_df=df_rep.iloc[:1].copy(),
+        debounced_status=debounced_status[:1],
+        debounced_risk=debounced_risk[:1],
+        dates=rep_dates[:1],
+        engine2_rul=e2_rul,
+        engine2_risk=e2_risk,
+    )
+    single_html = render_twin3d_html(single_cycle_payload)
+    single_ok = single_html.strip().endswith("</html>") and ("Cycle 1 / 1" in single_html or "cycle-slider" in single_html)
+    check(single_ok, "Single-cycle payload renders without exception and ends with </html>")
+
+    # 5. Generated HTML is ASCII only
+    mojibake = re.compile(r"[^\x00-\x7F]")
+    ascii_ok = not mojibake.search(t2_html) and not mojibake.search(single_html)
+    check(ascii_ok, "Generated HTML documents are 100% ASCII")
+
+    # Node check on inline script bodies
+    try:
+        node_res = subprocess.run(["node", "--version"], capture_output=True, text=True)
+        if node_res.returncode == 0:
+            print(f"Node detected: {node_res.stdout.strip()}")
+            node_syntax_ok = True
+            for s_idx, s_code in enumerate(p_balance.inline_scripts):
+                tmp_js = os.path.join(tempfile.gettempdir(), f"check_script_{s_idx}.js")
+                with open(tmp_js, "w", encoding="utf-8") as f_js:
+                    f_js.write(s_code)
+                try:
+                    chk_res = subprocess.run(["node", "--check", tmp_js], capture_output=True, text=True)
+                    if chk_res.returncode != 0:
+                        node_syntax_ok = False
+                        print(f"FAIL: Node check on inline script {s_idx}: {chk_res.stderr}")
+                    else:
+                        print(f"PASS: node --check on inline script {s_idx}")
+                finally:
+                    if os.path.exists(tmp_js):
+                        os.remove(tmp_js)
+            check(node_syntax_ok, "Inline JavaScript syntax validated with node --check")
+        else:
+            print("Node returned non-zero, skipping node --check")
+    except FileNotFoundError:
+        print("Node not installed on system; skipping node --check")
+
+    # Stage T3: Digital Twin 3D View Integration Checks
+    print("--- Stage T3: Digital Twin 3D View Integration Checks ---")
+    twin_page_path = str(_root / "app" / "pages" / "2_Digital_Twin.py")
+    target_3d_caption = "Illustrative module wear derived from the engine-level RUL; the model predicts RUL per engine, not per module. Engine 2 is shown static. The 3D view has its own playback controls, separate from the 2D chart above."
+
+    # 1. Twin page renders without exception for maintainer and admin roles at cycles 1, 52, 125, 150, 186, 208 and caption is present
+    cycles_to_test = [1, 52, 125, 150, 186, int(df_rep["cycle"].max())]
+    roles_cycles_ok = True
+    for role_name in ["maintainer", "admin"]:
+        at_role = AppTest.from_file(twin_page_path)
+        set_current_user(role_name, session_state=at_role.session_state)
+        at_role.run(timeout=30)
+        if at_role.exception:
+            roles_cycles_ok = False
+            print(f"FAIL: {role_name} had exception on initial load: {at_role.exception}")
+        for test_c in cycles_to_test:
+            at_role.slider("slider").set_value(test_c).run(timeout=30)
+            if at_role.exception:
+                roles_cycles_ok = False
+                print(f"FAIL: {role_name} had exception at cycle {test_c}: {at_role.exception}")
+            has_caption = any(target_3d_caption in c.value for c in at_role.caption)
+            if not has_caption:
+                roles_cycles_ok = False
+                print(f"FAIL: {role_name} missing 3D caption at cycle {test_c}")
+    check(roles_cycles_ok, "Twin page renders without exception for maintainer and admin across test cycles with 3D caption present")
+
+    # 2. Viewer role is denied, renders no caption and no 3D content
+    at_viewer = AppTest.from_file(twin_page_path)
+    set_current_user("viewer", session_state=at_viewer.session_state)
+    at_viewer.run(timeout=30)
+    viewer_denied_ok = (
+        any("access denied" in e.value.lower() for e in at_viewer.error)
+        and len(at_viewer.caption) == 0
+        and len(at_viewer.subheader) == 0
+        and not any("3d" in m.value.lower() for m in at_viewer.markdown)
+        and not at_viewer.exception
+    )
+    check(viewer_denied_ok, "Viewer role is denied, renders no caption and no 3D content")
+
+    # 3. Capture HTML passed to st.components.v1.html / get_cached_twin3d_html
+    get_cached_fn = getattr(twin_page, "get_cached_twin3d_html", None)
+    check(get_cached_fn is not None, "get_cached_twin3d_html function exists on twin page")
+    if get_cached_fn is not None:
+        cached_h1 = get_cached_fn(DEMO_AIRCRAFT_ID)
+        cached_h2 = get_cached_fn(DEMO_AIRCRAFT_ID)
+        html_cached_identical = (cached_h1 == cached_h2)
+        html_contents_ok = (
+            DEMO_AIRCRAFT_ID in cached_h1
+            and "Illustrative" in cached_h1
+            and "3D view unavailable" in cached_h1
+        )
+        check(
+            html_cached_identical and html_contents_ok,
+            "Cached 3D HTML returns byte-identical string containing aircraft_id, disclaimer text, and fallback text"
+        )
     
     smoke_passed, smoke_failed = run_smoke_tests()
     passed += smoke_passed

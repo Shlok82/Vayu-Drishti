@@ -85,8 +85,16 @@ C-MAPSS is a public NASA civil turbofan simulation, not data from any real air f
 - The model is trained on public civil engine data, not a real military fleet.
 - Maintenance records, schedules, and spares data are purely synthetic simulations.
 - **Deployment Note:** A real deployment would train on the service's own health-monitoring data, strictly on-premise and offline.
+- **Demo Access Control:** Authentication and role-based access control are demonstrative and not intended for production security; real deployments use enterprise SSO, PKI/smart-cards, and encrypted credential stores.
 
 ## Future Work
 - Full digital twin implementation using MQTT/Kafka for real-time telemetry instead of simulated data feed.
 - Extending predictive models to include more complex architectures like LSTMs or 1D-CNNs on the larger N-CMAPSS dataset.
 - Adding more components (like Bearings and Battery modules).
+
+## 3D Digital Twin
+- **Telemetry & State:** Predicted RUL, risk levels, and spares status come directly from the trained XGBoost model and the page's debounced temporal logic.
+- **Module Wear Allocation:** Module wear (fan, compressor, combustor, turbine) is illustrative, calculated as a fixed allocation of the engine-level predicted RUL. NASA C-MAPSS FD001 contains no per-module degradation labels.
+- **Engine Configuration:** Dual-engine jet model; engine 1 displays dynamic telemetry replayed from the held-out validation engine, while engine 2 is shown static with predictions from `data/predictions.csv`.
+- **Offline / Air-Gapped Deployment:** The 3D view dynamically loads Three.js and OrbitControls from the jsDelivr CDN; an offline or air-gapped military deployment would need these static JavaScript libraries bundled locally.
+

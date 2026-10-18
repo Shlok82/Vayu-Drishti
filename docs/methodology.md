@@ -30,3 +30,11 @@ The planner prioritizes earliest feasible maintenance completion so that jobs fi
 
 ## Real-World Deployment
 A real deployment would train on the service's own health-monitoring data, strictly on-premise and offline, using actual SAP/ERP integration for spares and work orders.
+- **Demo Access Control:** Authentication and role-based access control are demonstrative and not intended for production security; real deployments use enterprise SSO and encrypted stores.
+
+## 3D Digital Twin Architecture
+- **Telemetry & State Integration:** The 3D twin visualization receives predicted RUL, risk levels, and spares status directly from the machine learning model and the page's debounced temporal logic.
+- **Illustrative Module Wear:** Module-level wear (fan, compressor, combustor, turbine) is calculated illustratively by applying fixed allocation factors to the engine-level predicted RUL. NASA C-MAPSS FD001 provides engine-level run-to-failure records without per-module degradation labels.
+- **Engine Configuration:** The airframe model features dual engines; engine 1 displays dynamic per-cycle telemetry from the replayed engine, whereas engine 2 is shown static with values sourced from `data/predictions.csv`.
+- **Client-Side Rendering & Offline Deployment:** The 3D view renders in client-side WebGL via Three.js and OrbitControls loaded from the jsDelivr CDN, requiring no frame-by-frame server roundtrips. An offline or air-gapped deployment would require these static JavaScript libraries to be bundled locally within the application package.
+

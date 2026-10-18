@@ -26,5 +26,6 @@ AVG_FLIGHT_HOURS_PER_CYCLE = 1.5
 WATCH_MARGIN_DAYS = 30
 ORDER_MARGIN_DAYS = 14
 
-
+# Illustrative allocation of engine-level predicted RUL to modules; C-MAPSS has no per-module wear labels.
+MODULE_WEAR_FACTORS = {"turbine": 1.0, "combustor": 0.9, "compressor": 0.75, "fan": 0.6}
 
