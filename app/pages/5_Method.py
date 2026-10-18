@@ -4,6 +4,12 @@ _root = Path(__file__).resolve().parents[2]
 if str(_root) not in sys.path:
     sys.path.insert(0, str(_root))
 import streamlit as st
+from app.auth import check_access
+
+if not check_access("Methodology"):
+    st.error("Access denied. Please log in with an authorized account.")
+    st.stop()
+
 import os
 
 from ml.config import DOCS_DIR

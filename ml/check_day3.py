@@ -69,7 +69,10 @@ from streamlit.testing.v1 import AppTest
 page = sys.argv[1]
 try:
     start_time = time.time()
-    at = AppTest.from_file(page).run(timeout=60)
+    at = AppTest.from_file(page)
+    at.session_state["auth_user"] = "admin"
+    at.session_state["role"] = "admin"
+    at.run(timeout=60)
     if at.exception:
         print(f"Exception in {page}: {at.exception}")
         sys.exit(1)
@@ -469,6 +472,175 @@ def check_day3():
                                 no_plaintext_pw = False
                                 print(f"FAIL: Plaintext password for {u} found in {fpath.relative_to(_root)}")
     check(no_plaintext_pw, "Grep over app/ and ml/ finds none of the three plain-text passwords")
+
+    print("--- Stage L2: Login Gate & Page Authorization Tests ---")
+    from streamlit.testing.v1 import AppTest
+
+    # (a) main.py without auth shows login form and no dashboard
+    at_unauth = AppTest.from_file(str(_root / "app" / "main.py"))
+    at_unauth.run(timeout=30)
+    has_login = any("Login" in str(s.value) for s in at_unauth.subheader) or len(at_unauth.text_input) >= 2
+    has_caption = any("Demo access control, not production security." in str(c.value) for c in at_unauth.caption)
+    no_dashboard = not any("Fleet Status" in str(s.value) for s in at_unauth.subheader)
+    check(has_login and has_caption and no_dashboard and not at_unauth.exception,
+          "main.py without auth shows login form and no dashboard")
+
+    # (b) each role renders allowed pages without exception
+    page_file_map = {
+        "Fleet Overview": _root / "app" / "pages" / "0_Fleet_Overview.py",
+        "Aircraft Detail": _root / "app" / "pages" / "1_Aircraft_Detail.py",
+        "Digital Twin": _root / "app" / "pages" / "2_Digital_Twin.py",
+        "Planner": _root / "app" / "pages" / "3_Planner.py",
+        "Results": _root / "app" / "pages" / "4_Results.py",
+        "Methodology": _root / "app" / "pages" / "5_Method.py",
+    }
+    roles_ok = True
+    for r in ["viewer", "maintainer", "admin"]:
+        for p_title in allowed_pages(r):
+            p_file = page_file_map.get(p_title)
+            if p_file and p_file.exists():
+                at_r = AppTest.from_file(str(p_file))
+                at_r.session_state["auth_user"] = r
+                at_r.session_state["role"] = r
+                at_r.run(timeout=30)
+                denied_errors = [e.value for e in at_r.error if "access denied" in e.value.lower()]
+                if at_r.exception or len(denied_errors) > 0:
+                    roles_ok = False
+                    print(f"FAIL: Role {r} failed rendering allowed page {p_title}: {at_r.exception or denied_errors}")
+    check(roles_ok, "Each role renders allowed pages without exception")
+
+    # (c) viewer opening Planner or Twin directly gets error and no page content (st.stop())
+    viewer_restricted_ok = True
+    for restricted in ["2_Digital_Twin.py", "3_Planner.py"]:
+        at_v = AppTest.from_file(str(_root / "app" / "pages" / restricted))
+        at_v.session_state["auth_user"] = "viewer"
+        at_v.session_state["role"] = "viewer"
+        at_v.run(timeout=30)
+        has_denied = any("access denied" in e.value.lower() for e in at_v.error)
+        if restricted == "2_Digital_Twin.py":
+            stopped = len([m for m in at_v.metric if m.label == "Current Cycle"]) == 0
+        else:
+            stopped = not any("Plan Summary" in str(s.value) for s in at_v.subheader)
+        if not (has_denied and stopped and not at_v.exception):
+            viewer_restricted_ok = False
+            print(f"FAIL: Viewer accessing {restricted} directly did not stop with error (has_denied={has_denied}, stopped={stopped})")
+    check(viewer_restricted_ok, "Viewer opening Planner or Twin directly gets error and no page content (st.stop())")
+
+    # (d) Logout clears session
+    at_logout = AppTest.from_file(str(_root / "app" / "main.py"))
+    at_logout.session_state["auth_user"] = "admin"
+    at_logout.session_state["role"] = "admin"
+    at_logout.run(timeout=30)
+    at_logout.sidebar.button(key="logout_btn").click().run(timeout=30)
+    logout_cleared = (not at_logout.session_state.get("auth_user")) and (not at_logout.session_state.get("role"))
+    logout_login_shown = any("Demo access control, not production security." in str(c.value) for c in at_logout.caption)
+    check(logout_cleared and logout_login_shown, "Logout clears session auth_user and role and returns to login gate")
+
+    print("--- Stage L2-FIX: Enhanced Security & Authorization Checks ---")
+    from app.auth import set_current_user
+
+    # LF4(a): app/auth.py and every file in app/ contain none of: sys.argv, os.environ, check_day, TEST_MODE, BYPASS
+    forbidden_patterns = ["sys.argv", "os.environ", "check_day", "TEST_MODE", "BYPASS"]
+    app_files = []
+    for r_dir, _, f_names in os.walk(_root / "app"):
+        for f_n in f_names:
+            if f_n.endswith(".py"):
+                app_files.append(Path(r_dir) / f_n)
+
+    forbidden_found = []
+    for f_p in sorted(app_files):
+        with open(f_p, "r", encoding="utf-8", errors="replace") as fp:
+            f_content = fp.read()
+        for pat in forbidden_patterns:
+            if pat in f_content:
+                forbidden_found.append((str(f_p.relative_to(_root)), pat))
+
+    print(f"Forbidden search across {len(app_files)} files in app/ (patterns={forbidden_patterns}): {forbidden_found}")
+    check(len(forbidden_found) == 0, "app/ files contain none of: sys.argv, os.environ, check_day, TEST_MODE, BYPASS")
+
+    # LF4(b): every page, run with an empty session state, shows the login prompt or access denied and renders none of its normal content
+    all_pages = [
+        _root / "app" / "main.py",
+        _root / "app" / "pages" / "0_Fleet_Overview.py",
+        _root / "app" / "pages" / "1_Aircraft_Detail.py",
+        _root / "app" / "pages" / "2_Digital_Twin.py",
+        _root / "app" / "pages" / "3_Planner.py",
+        _root / "app" / "pages" / "4_Results.py",
+        _root / "app" / "pages" / "5_Method.py",
+    ]
+    empty_session_ok = True
+    for p_path in all_pages:
+        at_empty = AppTest.from_file(str(p_path))
+        at_empty.run(timeout=30)
+        p_name = p_path.name
+        if p_name == "main.py":
+            has_prompt = any("Login" in str(s.value) for s in at_empty.subheader) and len(at_empty.text_input) >= 2
+            no_normal = (
+                not any("Fleet Status" in str(s.value) for s in at_empty.subheader)
+                and len(at_empty.metric) == 0
+                and len(at_empty.dataframe) == 0
+            )
+            if not (has_prompt and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: main.py with empty session failed (has_prompt={has_prompt}, no_normal={no_normal})")
+        elif p_name == "0_Fleet_Overview.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = (
+                not any("Fleet Status" in str(s.value) for s in at_empty.subheader)
+                and len(at_empty.dataframe) == 0
+            )
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+        elif p_name == "1_Aircraft_Detail.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = len(at_empty.selectbox) == 0 and len(at_empty.dataframe) == 0
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+        elif p_name == "2_Digital_Twin.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = len(at_empty.metric) == 0 and len(at_empty.button) == 0 and len(at_empty.slider) == 0
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+        elif p_name == "3_Planner.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = len(at_empty.subheader) == 0 and len(at_empty.dataframe) == 0
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+        elif p_name == "4_Results.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = len(at_empty.subheader) == 0 and len(at_empty.dataframe) == 0
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+        elif p_name == "5_Method.py":
+            has_denied = any("access denied" in e.value.lower() for e in at_empty.error)
+            no_normal = len(at_empty.markdown) == 0
+            if not (has_denied and no_normal and not at_empty.exception):
+                empty_session_ok = False
+                print(f"FAIL: {p_name} with empty session failed (has_denied={has_denied}, no_normal={no_normal})")
+    check(empty_session_ok, "Every page with empty session state shows login prompt or access denied and renders none of normal content")
+
+    # LF4(c): a viewer account is denied the admin-only page and the maintainer-only pages
+    viewer_denials_ok = True
+    for restricted_page in ["2_Digital_Twin.py", "3_Planner.py"]:
+        at_vd = AppTest.from_file(str(_root / "app" / "pages" / restricted_page))
+        set_current_user("viewer", session_state=at_vd.session_state)
+        at_vd.run(timeout=30)
+        has_denied = any("access denied" in e.value.lower() for e in at_vd.error)
+        no_content = (
+            len(at_vd.metric) == 0
+            and len(at_vd.subheader) == 0
+            and len(at_vd.dataframe) == 0
+            and not at_vd.exception
+        )
+        if not (has_denied and no_content):
+            viewer_denials_ok = False
+            print(f"FAIL: Viewer was not strictly denied {restricted_page} (has_denied={has_denied}, no_content={no_content})")
+    check(viewer_denials_ok, "Viewer account is strictly denied maintainer/admin pages and renders no page content")
     
     smoke_passed, smoke_failed = run_smoke_tests()
     passed += smoke_passed

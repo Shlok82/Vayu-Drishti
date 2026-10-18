@@ -80,12 +80,32 @@ def allowed_pages(role: str | None) -> list:
     return list(PAGES_BY_ROLE[role])
 
 
+def check_access(page_name: str) -> bool:
+    """Check whether the current session is authorized to view page_name."""
+    try:
+        import streamlit as st
+        from streamlit.runtime.scriptrunner_utils.script_run_context import get_script_run_ctx
+
+        # When executed offline outside Streamlit runtime (e.g. pure Python module imports), do not block
+        if get_script_run_ctx() is None:
+            return True
+
+        user = st.session_state.get("auth_user") or st.session_state.get("authenticated_user")
+        if not user:
+            return False
+
+        role = st.session_state.get("role") or st.session_state.get("authenticated_role") or GUEST_ROLE
+        return page_name in allowed_pages(role)
+    except Exception:
+        return False
+
+
 def get_current_user() -> str | None:
     """Return the currently authenticated username from session_state, or None."""
     try:
         import streamlit as st
 
-        return st.session_state.get("authenticated_user", None)
+        return st.session_state.get("auth_user") or st.session_state.get("authenticated_user", None)
     except Exception:
         return None
 
@@ -95,30 +115,34 @@ def get_current_role() -> str:
     try:
         import streamlit as st
 
-        return st.session_state.get("authenticated_role", GUEST_ROLE)
+        return st.session_state.get("role") or st.session_state.get("authenticated_role", GUEST_ROLE)
     except Exception:
         return GUEST_ROLE
 
 
-def set_current_user(username: str | None, role: str | None = None) -> None:
+def set_current_user(username: str | None, role: str | None = None, session_state=None) -> None:
     """Set the authenticated user and role in session_state."""
     try:
         import streamlit as st
 
-        st.session_state["authenticated_user"] = username
-        st.session_state["authenticated_role"] = (
-            role if role is not None else GUEST_ROLE
-        )
+        resolved_role = role if role is not None else DEMO_USERS.get(username, {}).get("role", GUEST_ROLE)
+        target = session_state if session_state is not None else st.session_state
+        target["auth_user"] = username
+        target["role"] = resolved_role
+        target["authenticated_user"] = username
+        target["authenticated_role"] = resolved_role
     except Exception:
         pass
 
 
 def logout() -> None:
-    """Clear the authenticated user and reset role to GUEST_ROLE."""
+    """Clear the authenticated user and role from session_state."""
     try:
         import streamlit as st
 
-        st.session_state["authenticated_user"] = None
-        st.session_state["authenticated_role"] = GUEST_ROLE
+        st.session_state.pop("auth_user", None)
+        st.session_state.pop("role", None)
+        st.session_state.pop("authenticated_user", None)
+        st.session_state.pop("authenticated_role", None)
     except Exception:
         pass

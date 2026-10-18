@@ -30,3 +30,4 @@ The planner prioritizes earliest feasible maintenance completion so that jobs fi
 
 ## Real-World Deployment
 A real deployment would train on the service's own health-monitoring data, strictly on-premise and offline, using actual SAP/ERP integration for spares and work orders.
+- **Demo Access Control:** Authentication and role-based access control are demonstrative and not intended for production security; real deployments use enterprise SSO and encrypted stores.

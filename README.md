@@ -85,6 +85,7 @@ C-MAPSS is a public NASA civil turbofan simulation, not data from any real air f
 - The model is trained on public civil engine data, not a real military fleet.
 - Maintenance records, schedules, and spares data are purely synthetic simulations.
 - **Deployment Note:** A real deployment would train on the service's own health-monitoring data, strictly on-premise and offline.
+- **Demo Access Control:** Authentication and role-based access control are demonstrative and not intended for production security; real deployments use enterprise SSO, PKI/smart-cards, and encrypted credential stores.
 
 ## Future Work
 - Full digital twin implementation using MQTT/Kafka for real-time telemetry instead of simulated data feed.
