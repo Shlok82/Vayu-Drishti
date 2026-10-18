@@ -403,6 +403,72 @@ def check_day3():
             if slack > 30 and r['status'] != 'OK':
                 ok_slack = False
     check(ok_slack, "Green zero-stock engine with slack > 30 shows OK", "Green zero-stock engine with slack > 30 does not show OK")
+
+    # Auth helpers and credentials security check (Stage L1)
+    print("--- Auth Helpers & Access Control Check ---")
+    import re
+    from app.auth import verify, allowed_pages, PAGES_BY_ROLE, GUEST_ROLE, DEMO_USERS
+
+    demo_access_file = _root / 'docs' / 'DEMO_ACCESS.md'
+    assert demo_access_file.exists(), "docs/DEMO_ACCESS.md does not exist"
+    with open(demo_access_file, 'r', encoding='utf-8') as f:
+        demo_access_text = f.read()
+
+    creds = {}
+    for line in demo_access_text.splitlines():
+        m = re.search(r'`(viewer|maintainer|admin)`\s*\|\s*`([^`]+)`', line)
+        if m:
+            creds[m.group(1)] = m.group(2)
+
+    check(len(creds) == 3, "All three demo credentials parsed from docs/DEMO_ACCESS.md", "Failed parsing credentials from docs/DEMO_ACCESS.md")
+
+    roles_ok = True
+    for u, p in creds.items():
+        if verify(u, p) != u:
+            roles_ok = False
+            print(f"FAIL: verify({u}, ...) returned {verify(u, p)}, expected {u}")
+    check(roles_ok, "Correct credentials return the right role for all three users")
+
+    wrong_pw_ok = (
+        verify("viewer", "wrong_password_xyz") is None
+        and verify("maintainer", "wrong_password_xyz") is None
+        and verify("admin", "wrong_password_xyz") is None
+        and verify("nonexistent_user", creds.get("admin", "")) is None
+    )
+    check(wrong_pw_ok, "Wrong password and unknown user return None")
+
+    empty_ok = (
+        verify("", "") is None
+        and verify("viewer", "") is None
+        and verify("", creds.get("viewer", "")) is None
+        and verify(None, None) is None
+        and verify("viewer", None) is None
+        and verify(None, creds.get("viewer", "")) is None
+    )
+    check(empty_ok, "Empty input returns None")
+
+    v_pages = allowed_pages("viewer")
+    viewer_excludes_ok = not any("Planner" in p for p in v_pages) and not any("Digital Twin" in p for p in v_pages)
+    check(viewer_excludes_ok, "allowed_pages for viewer excludes Planner and Digital Twin")
+
+    admin_pages = allowed_pages("admin")
+    req_pages = ["Fleet Overview", "Aircraft Detail", "Digital Twin", "Planner", "Results", "Methodology"]
+    admin_all_ok = all(any(rp in ap for ap in admin_pages) for rp in req_pages)
+    check(admin_all_ok, "admin includes all pages")
+
+    no_plaintext_pw = True
+    for folder in ['app', 'ml']:
+        for root_dir, _, fnames in os.walk(_root / folder):
+            for fname in fnames:
+                if fname.endswith(('.py', '.json', '.csv', '.txt', '.md', '.yaml', '.yml')):
+                    fpath = Path(root_dir) / fname
+                    with open(fpath, 'r', encoding='utf-8', errors='ignore') as fp:
+                        content = fp.read()
+                        for u, pw in creds.items():
+                            if pw in content:
+                                no_plaintext_pw = False
+                                print(f"FAIL: Plaintext password for {u} found in {fpath.relative_to(_root)}")
+    check(no_plaintext_pw, "Grep over app/ and ml/ finds none of the three plain-text passwords")
     
     smoke_passed, smoke_failed = run_smoke_tests()
     passed += smoke_passed
