@@ -642,6 +642,106 @@ def check_day3():
             print(f"FAIL: Viewer was not strictly denied {restricted_page} (has_denied={has_denied}, no_content={no_content})")
     check(viewer_denials_ok, "Viewer account is strictly denied maintainer/admin pages and renders no page content")
     
+    # Stage T1: Wear and Twin 3D Payload Checks
+    print("--- Stage T1: Wear and Twin 3D Payload Checks ---")
+    from ml.module_wear import wear_from_rul, module_wear_series
+    from app.twin3d import build_twin_payload
+    from ml.config import AS_OF
+
+    # 1. wear_from_rul at boundary points
+    w125 = wear_from_rul(125)
+    w0 = wear_from_rul(0)
+    w_boundaries_ok = (
+        all(v == 0.0 for v in w125.values())
+        and w0.get("turbine") == 100.0
+        and w0.get("fan") == 60.0
+    )
+    check(w_boundaries_ok, "wear_from_rul(125) is 0 for all modules; turbine at RUL 0 is 100; fan at RUL 0 is 60")
+
+    # 2. Falling RUL monotonic wear
+    falling_rul = list(range(125, -1, -1))
+    series_falling = module_wear_series(falling_rul)
+    falling_monotone = True
+    for mod, vals in series_falling.items():
+        for i in range(len(vals) - 1):
+            if vals[i + 1] < vals[i]:
+                falling_monotone = False
+    check(falling_monotone, "Module wear never decreases for RUL sequence falling from 125 to 0")
+
+    # 3. Noisy RUL series monotonic and bounded [0, 100]
+    import numpy as np
+    rng = np.random.default_rng(42)
+    noisy_rul = [125.0 - i + float(rng.uniform(-10.0, 10.0)) for i in range(150)]
+    series_noisy = module_wear_series(noisy_rul)
+    noisy_ok = True
+    for mod, vals in series_noisy.items():
+        if not all(0.0 <= v <= 100.0 for v in vals):
+            noisy_ok = False
+        for i in range(len(vals) - 1):
+            if vals[i + 1] < vals[i]:
+                noisy_ok = False
+    check(noisy_ok, "module_wear_series on noisy series is non-decreasing and bounded in [0, 100]")
+
+    # 4. Causality check
+    causality_ok = True
+    for k in [10, 50, 150]:
+        series_k = module_wear_series(noisy_rul[:k])
+        for mod in ["fan", "compressor", "combustor", "turbine"]:
+            if series_k[mod] != series_noisy[mod][:k]:
+                causality_ok = False
+    check(causality_ok, "Causality: module_wear_series(rul[:k]) equals first k values of full series for k in {10, 50, 150}")
+
+    # 5. Build twin payload and check schema, size, disclaimer
+    as_of_dt = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M")
+    rep_dates = [(as_of_dt + timedelta(days=(float(c) - 1.0) / fpd)).strftime("%Y-%m-%d %H:%M") for c in df_rep["cycle"]]
+    e2_row = df_preds[(df_preds["aircraft_id"] == DEMO_AIRCRAFT_ID) & (df_preds["component"] == "engine_2")].iloc[0]
+    e2_rul = float(e2_row["predicted_rul_cycles"])
+    e2_risk = str(e2_row["risk_level"])
+
+    t1_payload = build_twin_payload(
+        aircraft_id=DEMO_AIRCRAFT_ID,
+        engine_id=engine_for_aircraft(DEMO_AIRCRAFT_ID),
+        replay_df=df_rep,
+        debounced_status=debounced_status,
+        debounced_risk=debounced_risk,
+        dates=rep_dates,
+        engine2_rul=e2_rul,
+        engine2_risk=e2_risk,
+    )
+
+    n_cycles = len(df_rep)
+    e1_lens_ok = (
+        len(t1_payload["engine1"]["cycles"]) == n_cycles
+        and len(t1_payload["engine1"]["dates"]) == n_cycles
+        and len(t1_payload["engine1"]["rul"]) == n_cycles
+        and len(t1_payload["engine1"]["risk"]) == n_cycles
+        and len(t1_payload["engine1"]["status"]) == n_cycles
+        and all(len(t1_payload["engine1"]["wear"][m]) == n_cycles for m in ["fan", "compressor", "combustor", "turbine"])
+    )
+    t1_json_str = json.dumps(t1_payload)
+    t1_bytes = len(t1_json_str.encode("utf-8"))
+    print(f"Twin payload serialized size: {t1_bytes} bytes ({t1_bytes / 1024:.2f} KB)")
+    size_ok = t1_bytes < 500 * 1024
+
+    required_schema_keys = (
+        all(k in t1_payload for k in ["version", "disclaimer", "aircraft_id", "engine1", "engine2"])
+        and all(k in t1_payload["engine1"] for k in ["engine_id", "cycles", "dates", "rul", "risk", "status", "wear"])
+        and all(m in t1_payload["engine1"]["wear"] for m in ["fan", "compressor", "combustor", "turbine"])
+        and all(k in t1_payload["engine2"] for k in ["static", "rul", "risk", "wear", "note"])
+        and all(m in t1_payload["engine2"]["wear"] for m in ["fan", "compressor", "combustor", "turbine"])
+    )
+    disclaimer_ok = "Illustrative" in t1_payload["disclaimer"]
+
+    check(
+        e1_lens_ok and size_ok and required_schema_keys and disclaimer_ok,
+        "Twin payload structure, cycle list lengths, size under 500 KB, schema keys, and disclaimer verified"
+    )
+
+    # 6. Payload status and risk sequences equal Twin page debounced series exactly
+    status_match = list(t1_payload["engine1"]["status"]) == list(debounced_status)
+    risk_match = list(t1_payload["engine1"]["risk"]) == list(debounced_risk)
+    check(status_match and risk_match, "Payload status and risk sequences equal Twin page debounced series exactly")
+    
     smoke_passed, smoke_failed = run_smoke_tests()
     passed += smoke_passed
     failed += smoke_failed
