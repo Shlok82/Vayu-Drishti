@@ -60,6 +60,41 @@ def get_twin_states(df, fpd, ac_info):
     
     return raw_status, debounced_status, raw_risk, debounced_risk
 
+
+@st.cache_data
+def get_cached_twin3d_html(aircraft_id: str) -> str:
+    from app.twin3d import build_twin_payload, render_twin3d_html
+    from ml.replay import replay, engine_for_aircraft
+    from ml.cache_layer import load_all_csvs
+
+    df_preds, df_master, _, _, _, _, _ = load_all_csvs()
+    ac = df_master[df_master['aircraft_id'] == aircraft_id].iloc[0]
+    flights_per_day = ac['flights_per_day']
+    eng_id = engine_for_aircraft(aircraft_id)
+    df_replay = replay(eng_id)
+
+    _, deb_status, _, deb_risk = get_twin_states(df_replay, flights_per_day, ac)
+
+    as_of_dt = datetime.strptime(AS_OF, "%Y-%m-%d %H:%M")
+    date_list = [(as_of_dt + timedelta(days=(float(c) - 1.0) / flights_per_day)).strftime("%Y-%m-%d %H:%M") for c in df_replay['cycle']]
+
+    e2_row = df_preds[(df_preds['aircraft_id'] == aircraft_id) & (df_preds['component'] == 'engine_2')].iloc[0]
+    e2_rul = float(e2_row['predicted_rul_cycles'])
+    e2_risk = str(e2_row['risk_level'])
+
+    payload = build_twin_payload(
+        aircraft_id=aircraft_id,
+        engine_id=eng_id,
+        replay_df=df_replay,
+        debounced_status=deb_status,
+        debounced_risk=deb_risk,
+        dates=date_list,
+        engine2_rul=e2_rul,
+        engine2_risk=e2_risk,
+    )
+    return render_twin3d_html(payload)
+
+
 def main():
     st.title("Digital Twin Replay")
     st.caption(f"Demo as-of date: {AS_OF} (fixed) | Replaying held-out engine {DEMO_ENGINE_ID} on demo aircraft {DEMO_AIRCRAFT_ID}")
@@ -232,6 +267,11 @@ def main():
             st.plotly_chart(fig_rul, width='stretch')
 
     render_twin_view(extra_hours)
+
+    st.subheader("3D view")
+    twin_html = get_cached_twin3d_html(DEMO_AIRCRAFT_ID)
+    st.components.v1.html(twin_html, height=600, scrolling=False)
+    st.caption("Illustrative module wear derived from the engine-level RUL; the model predicts RUL per engine, not per module. Engine 2 is shown static. The 3D view has its own playback controls, separate from the 2D chart above.")
 
 if __name__ == '__main__':
     main()

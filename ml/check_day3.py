@@ -855,6 +855,62 @@ def check_day3():
             print("Node returned non-zero, skipping node --check")
     except FileNotFoundError:
         print("Node not installed on system; skipping node --check")
+
+    # Stage T3: Digital Twin 3D View Integration Checks
+    print("--- Stage T3: Digital Twin 3D View Integration Checks ---")
+    twin_page_path = str(_root / "app" / "pages" / "2_Digital_Twin.py")
+    target_3d_caption = "Illustrative module wear derived from the engine-level RUL; the model predicts RUL per engine, not per module. Engine 2 is shown static. The 3D view has its own playback controls, separate from the 2D chart above."
+
+    # 1. Twin page renders without exception for maintainer and admin roles at cycles 1, 52, 125, 150, 186, 208 and caption is present
+    cycles_to_test = [1, 52, 125, 150, 186, int(df_rep["cycle"].max())]
+    roles_cycles_ok = True
+    for role_name in ["maintainer", "admin"]:
+        at_role = AppTest.from_file(twin_page_path)
+        set_current_user(role_name, session_state=at_role.session_state)
+        at_role.run(timeout=30)
+        if at_role.exception:
+            roles_cycles_ok = False
+            print(f"FAIL: {role_name} had exception on initial load: {at_role.exception}")
+        for test_c in cycles_to_test:
+            at_role.slider("slider").set_value(test_c).run(timeout=30)
+            if at_role.exception:
+                roles_cycles_ok = False
+                print(f"FAIL: {role_name} had exception at cycle {test_c}: {at_role.exception}")
+            has_caption = any(target_3d_caption in c.value for c in at_role.caption)
+            if not has_caption:
+                roles_cycles_ok = False
+                print(f"FAIL: {role_name} missing 3D caption at cycle {test_c}")
+    check(roles_cycles_ok, "Twin page renders without exception for maintainer and admin across test cycles with 3D caption present")
+
+    # 2. Viewer role is denied, renders no caption and no 3D content
+    at_viewer = AppTest.from_file(twin_page_path)
+    set_current_user("viewer", session_state=at_viewer.session_state)
+    at_viewer.run(timeout=30)
+    viewer_denied_ok = (
+        any("access denied" in e.value.lower() for e in at_viewer.error)
+        and len(at_viewer.caption) == 0
+        and len(at_viewer.subheader) == 0
+        and not any("3d" in m.value.lower() for m in at_viewer.markdown)
+        and not at_viewer.exception
+    )
+    check(viewer_denied_ok, "Viewer role is denied, renders no caption and no 3D content")
+
+    # 3. Capture HTML passed to st.components.v1.html / get_cached_twin3d_html
+    get_cached_fn = getattr(twin_page, "get_cached_twin3d_html", None)
+    check(get_cached_fn is not None, "get_cached_twin3d_html function exists on twin page")
+    if get_cached_fn is not None:
+        cached_h1 = get_cached_fn(DEMO_AIRCRAFT_ID)
+        cached_h2 = get_cached_fn(DEMO_AIRCRAFT_ID)
+        html_cached_identical = (cached_h1 == cached_h2)
+        html_contents_ok = (
+            DEMO_AIRCRAFT_ID in cached_h1
+            and "Illustrative" in cached_h1
+            and "3D view unavailable" in cached_h1
+        )
+        check(
+            html_cached_identical and html_contents_ok,
+            "Cached 3D HTML returns byte-identical string containing aircraft_id, disclaimer text, and fallback text"
+        )
     
     smoke_passed, smoke_failed = run_smoke_tests()
     passed += smoke_passed
