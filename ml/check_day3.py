@@ -742,6 +742,120 @@ def check_day3():
     risk_match = list(t1_payload["engine1"]["risk"]) == list(debounced_risk)
     check(status_match and risk_match, "Payload status and risk sequences equal Twin page debounced series exactly")
     
+    # Stage T2: Three.js Scene & Standalone Preview Checks
+    print("--- Stage T2: Three.js Scene & Standalone Preview Checks ---")
+    from html.parser import HTMLParser
+    from app.twin3d import render_twin3d_html
+
+    t2_html = render_twin3d_html(t1_payload)
+
+    # 1. Pinned script URLs and payload aircraft_id & disclaimer text
+    u_three = "https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"
+    u_orbit = "https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"
+    t2_urls_and_text_ok = (
+        u_three in t2_html
+        and u_orbit in t2_html
+        and t1_payload["aircraft_id"] in t2_html
+        and t1_payload["disclaimer"] in t2_html
+    )
+    check(t2_urls_and_text_ok, "Generated HTML contains pinned Three.js/OrbitControls URLs, aircraft_id, and disclaimer text")
+
+    # 2. Script-tag balance and ends with </html>
+    class _ScriptBalanceParser(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.open_scripts = 0
+            self.close_scripts = 0
+            self.inline_scripts = []
+            self._in_script = False
+            self._has_src = False
+            self._buf = []
+
+        def handle_starttag(self, tag, attrs):
+            if tag.lower() == "script":
+                self.open_scripts += 1
+                self._in_script = True
+                attr_dict = dict(attrs)
+                self._has_src = "src" in attr_dict
+                self._buf = []
+
+        def handle_endtag(self, tag):
+            if tag.lower() == "script":
+                self.close_scripts += 1
+                if self._in_script and not self._has_src:
+                    self.inline_scripts.append("".join(self._buf))
+                self._in_script = False
+                self._has_src = False
+                self._buf = []
+
+        def handle_data(self, data):
+            if self._in_script and not self._has_src:
+                self._buf.append(data)
+
+    p_balance = _ScriptBalanceParser()
+    p_balance.feed(t2_html)
+    balance_ok = (p_balance.open_scripts == p_balance.close_scripts) and t2_html.strip().endswith("</html>")
+    check(balance_ok, f"Script-tag balance ({p_balance.open_scripts} open, {p_balance.close_scripts} close) and HTML ends with </html>")
+
+    # 3. Hostile string handling
+    hostile_payload = dict(t1_payload)
+    hostile_payload["aircraft_id"] = "AF</script><b>x"
+    hostile_html = render_twin3d_html(hostile_payload)
+    p_hostile = _ScriptBalanceParser()
+    p_hostile.feed(hostile_html)
+    hostile_ok = (
+        "AF</script><b>x" not in hostile_html
+        and (p_hostile.open_scripts == p_hostile.close_scripts)
+        and hostile_html.strip().endswith("</html>")
+    )
+    check(hostile_ok, "Hostile string 'AF</script><b>x' is safely escaped and preserves script-tag balance")
+
+    # 4. Single-cycle payload renders without exception
+    single_cycle_payload = build_twin_payload(
+        aircraft_id=DEMO_AIRCRAFT_ID,
+        engine_id=engine_for_aircraft(DEMO_AIRCRAFT_ID),
+        replay_df=df_rep.iloc[:1].copy(),
+        debounced_status=debounced_status[:1],
+        debounced_risk=debounced_risk[:1],
+        dates=rep_dates[:1],
+        engine2_rul=e2_rul,
+        engine2_risk=e2_risk,
+    )
+    single_html = render_twin3d_html(single_cycle_payload)
+    single_ok = single_html.strip().endswith("</html>") and ("Cycle 1 / 1" in single_html or "cycle-slider" in single_html)
+    check(single_ok, "Single-cycle payload renders without exception and ends with </html>")
+
+    # 5. Generated HTML is ASCII only
+    mojibake = re.compile(r"[^\x00-\x7F]")
+    ascii_ok = not mojibake.search(t2_html) and not mojibake.search(single_html)
+    check(ascii_ok, "Generated HTML documents are 100% ASCII")
+
+    # Node check on inline script bodies
+    try:
+        node_res = subprocess.run(["node", "--version"], capture_output=True, text=True)
+        if node_res.returncode == 0:
+            print(f"Node detected: {node_res.stdout.strip()}")
+            node_syntax_ok = True
+            for s_idx, s_code in enumerate(p_balance.inline_scripts):
+                tmp_js = os.path.join(tempfile.gettempdir(), f"check_script_{s_idx}.js")
+                with open(tmp_js, "w", encoding="utf-8") as f_js:
+                    f_js.write(s_code)
+                try:
+                    chk_res = subprocess.run(["node", "--check", tmp_js], capture_output=True, text=True)
+                    if chk_res.returncode != 0:
+                        node_syntax_ok = False
+                        print(f"FAIL: Node check on inline script {s_idx}: {chk_res.stderr}")
+                    else:
+                        print(f"PASS: node --check on inline script {s_idx}")
+                finally:
+                    if os.path.exists(tmp_js):
+                        os.remove(tmp_js)
+            check(node_syntax_ok, "Inline JavaScript syntax validated with node --check")
+        else:
+            print("Node returned non-zero, skipping node --check")
+    except FileNotFoundError:
+        print("Node not installed on system; skipping node --check")
+    
     smoke_passed, smoke_failed = run_smoke_tests()
     passed += smoke_passed
     failed += smoke_failed
