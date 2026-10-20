@@ -911,7 +911,64 @@ def check_day3():
             html_cached_identical and html_contents_ok,
             "Cached 3D HTML returns byte-identical string containing aircraft_id, disclaimer text, and fallback text"
         )
-    
+
+    # Stage DOCS-2 Checks: Documentation, links, images, and schedule verification
+    print("--- Stage DOCS-2 Documentation Checks ---")
+
+    # 1. README.md and progress.md are ASCII-only
+    readme_path = _root / "README.md"
+    progress_path = _root / "progress.md"
+    readme_raw = readme_path.read_bytes()
+    progress_raw = progress_path.read_bytes()
+    readme_ascii_ok = all(b < 128 for b in readme_raw)
+    progress_ascii_ok = all(b < 128 for b in progress_raw)
+    check(readme_ascii_ok and progress_ascii_ok, "README.md and progress.md are ASCII-only")
+
+    # 2. README contains https://vayu-drishti.streamlit.app/ and not the text 'add after deploy'
+    readme_text = readme_raw.decode("ascii", errors="replace")
+    readme_link_ok = (
+        "https://vayu-drishti.streamlit.app/" in readme_text
+        and "add after deploy" not in readme_text.lower()
+    )
+    check(readme_link_ok, "README contains live deployment link and no 'add after deploy' text")
+
+    # 3. Every relative image link in README that is NOT inside an HTML comment points to an existing file
+    readme_no_comments = re.sub(r'<!--.*?-->', '', readme_text, flags=re.DOTALL)
+    md_img_links = re.findall(r'!\[.*?\]\((docs/images/[^\s\)]+)\)', readme_no_comments)
+    html_img_links = re.findall(r'<img\s+[^>]*src=[\'"](docs/images/[^\'"]+)[\'"]', readme_no_comments)
+    rel_md_links = re.findall(r'\[docs/images/[^\]]+\]\((docs/images/[^\s\)]+)\)', readme_no_comments)
+    all_img_links = set(md_img_links + html_img_links + rel_md_links)
+    missing_imgs = [link for link in all_img_links if not (_root / link).is_file()]
+    check(len(missing_imgs) == 0 and len(all_img_links) > 0, f"All relative image links point to existing files (checked {len(all_img_links)} links)")
+
+    # 4. progress.md contains '20 October 2026' and none of the old schedule strings
+    progress_text = progress_raw.decode("ascii", errors="replace")
+    has_target_date = "20 October 2026" in progress_text
+    old_strings = [
+        "5 October 2026", "1 Oct", "2 Oct", "3 Oct", "4 Oct", "5 Oct",
+        "Thursday", "Friday", "Saturday", "Sunday", "Monday", "Tuesday", "Wednesday",
+        "(today)", "the 5th"
+    ]
+    found_old_strings = [s for s in old_strings if s in progress_text]
+    check(has_target_date and len(found_old_strings) == 0, "progress.md contains target date '20 October 2026' and no old schedule strings")
+
+    # 5. progress.md has no [~] and every [ ] line is inside the 'Remaining before submission' section
+    has_in_progress = "[~]" in progress_text
+    lines = progress_text.splitlines()
+    in_remaining_section = False
+    invalid_todo_lines = []
+    for line_idx, line in enumerate(lines, start=1):
+        if "## Remaining before submission" in line:
+            in_remaining_section = True
+        elif line.startswith("## ") and in_remaining_section:
+            in_remaining_section = False
+        if "[ ]" in line:
+            if "Status key:" in line:
+                continue
+            if not in_remaining_section:
+                invalid_todo_lines.append((line_idx, line.strip()))
+    check(not has_in_progress and len(invalid_todo_lines) == 0, "progress.md has no [~] and all [ ] items are in 'Remaining before submission'")
+
     smoke_passed, smoke_failed = run_smoke_tests()
     passed += smoke_passed
     failed += smoke_failed
